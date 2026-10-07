@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>紅字日曆</title>
 <meta name="description" content="台灣國定假日、連假倒數、工作天推算與自訂日期">
 <meta name="theme-color" content="#0E6B58">
@@ -35,7 +35,9 @@
 *{box-sizing:border-box}
 html{color-scheme:light}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-body{margin:0;-webkit-text-size-adjust:100%}
+body{margin:0;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body,button,input,select,label,.day{touch-action:manipulation}
+button{-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);font-variant-numeric:tabular-nums}
 .wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
@@ -48,7 +50,7 @@ nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:v
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px}
 .seg button{border:0;background:none;color:var(--muted);font:500 15px var(--f-body);padding:9px 6px;border-radius:999px;cursor:pointer}
 .seg button[aria-selected="true"]{background:var(--accent);color:var(--bg)}
-button,input,select{font-family:inherit;font-size:15px}
+button,input,select{font-family:inherit;font-size:16px}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 h2{font:700 19px/1.3 var(--f-display);margin:0;text-wrap:balance}
 .label{font-size:12px;letter-spacing:.08em;color:var(--muted)}
@@ -103,7 +105,7 @@ section.panel{display:flex;flex-direction:column;gap:18px}
 .day.tod{border-color:var(--accent)}
 .day.sel{background:var(--accent);}
 .day.sel .n,.day.sel .h{color:var(--bg)}
-.calinfo{margin-top:10px;font-size:14px;color:var(--muted);min-height:1.6em}
+.calinfo{margin-top:10px;font-size:14px;color:var(--muted);min-height:3.2em}
 .calinfo b{color:var(--ink)}
 
 /* forms / calculator */
@@ -140,6 +142,18 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
 .item .acts{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .item .acts button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px}
 .item .acts button.confirm{border-color:var(--red);color:var(--red)}
+.navgrp{display:flex;gap:6px;align-items:center}
+.todaybtn{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700;border-radius:8px;height:36px;padding:0 12px;cursor:pointer;font-size:14px}
+.mini{border:1px solid var(--line);background:none;color:var(--accent);border-radius:6px;padding:0 8px;font-size:12px;cursor:pointer;margin-left:6px;line-height:1.7}
+.flabel{display:flex;align-items:center;justify-content:space-between}
+.linkbtn{border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:14px}
+.linkbtn[aria-pressed="true"]{background:var(--accent-soft);border-style:solid;font-weight:700}
+.picker{border:1px solid var(--line);border-radius:var(--r);padding:12px;background:var(--bg)}
+.picker .day.sel{background:var(--accent)}
+.picker .day.sel .n,.picker .day.sel .h{color:var(--bg)}
+.pkchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:30px;align-items:center}
+.pkchips .c{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;font-size:13px;cursor:pointer}
+.pkchips .hint{font-size:13px;color:var(--muted)}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
 footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 @media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
@@ -168,7 +182,7 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
       <div class="calhead">
         <button class="iconbtn" id="calPrev" aria-label="上個月">‹</button>
         <h2 id="calTitle"></h2>
-        <button class="iconbtn" id="calNext" aria-label="下個月">›</button>
+        <div class="navgrp"><button class="todaybtn" id="calToday">今天</button><button class="iconbtn" id="calNext" aria-label="下個月">›</button></div>
       </div>
       <div class="grid7" id="calGrid"></div>
       <div class="calinfo" id="calInfo">點任一天看詳細資訊</div>
@@ -187,7 +201,7 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
       <div class="card">
         <h2>日期推算</h2>
         <div class="row">
-          <div class="field"><label for="aStart">起始日</label><input type="date" id="aStart"></div>
+          <div class="field"><div class="flabel"><label for="aStart">起始日</label><button type="button" class="mini" data-today="aStart">今天</button></div><input type="date" id="aStart"></div>
         </div>
         <div class="row">
           <div class="field sm"><label for="aSign">加減</label><select id="aSign"><option value="1">往後 ＋</option><option value="-1">往前 －</option></select></div>
@@ -201,8 +215,8 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
       <div class="card">
         <h2>兩個日期相差幾天</h2>
         <div class="row">
-          <div class="field"><label for="bFrom">開始</label><input type="date" id="bFrom"></div>
-          <div class="field"><label for="bTo">結束</label><input type="date" id="bTo"></div>
+          <div class="field"><div class="flabel"><label for="bFrom">開始</label><button type="button" class="mini" data-today="bFrom">今天</button></div><input type="date" id="bFrom"></div>
+          <div class="field"><div class="flabel"><label for="bTo">結束</label><button type="button" class="mini" data-today="bTo">今天</button></div><input type="date" id="bTo"></div>
         </div>
         <label class="check"><input type="checkbox" id="bIncl" style="width:auto;min-height:0"> 頭尾兩天都算進去</label>
         <div class="result" id="bOut"></div>
@@ -220,7 +234,17 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
     <form class="card" id="itemForm" autocomplete="off">
       <div class="row">
         <div class="field" style="flex:2 1 180px"><label for="fName">名稱</label><input id="fName" required maxlength="40" placeholder="例如：合約到期、媽媽生日"></div>
-        <div class="field"><label for="fBase">日期</label><input type="date" id="fBase" required></div>
+        <div class="field" id="fBaseWrap"><div class="flabel"><label for="fBase">日期</label><button type="button" class="mini" data-today="fBase">今天</button></div><input type="date" id="fBase" required></div>
+      </div>
+      <div class="row" id="multiRow"><button type="button" class="linkbtn" id="multiToggle" aria-pressed="false">＋ 一次選多個日期</button></div>
+      <div class="picker" id="picker" hidden>
+        <div class="calhead">
+          <button type="button" class="iconbtn" id="pkPrev" aria-label="上個月">‹</button>
+          <h2 id="pkTitle"></h2>
+          <div class="navgrp"><button type="button" class="todaybtn" id="pkToday">今天</button><button type="button" class="iconbtn" id="pkNext" aria-label="下個月">›</button></div>
+        </div>
+        <div class="grid7" id="pkGrid"></div>
+        <div class="pkchips" id="pkChips"></div>
       </div>
       <div class="row">
         <div class="field"><label for="fMode">怎麼算</label>
@@ -409,16 +433,19 @@ function renderCal(){
     const dt=mk(calY,calM,d), k=key(dt), hol=HOL[k];
     const cls=["day"]; if(isWeekend(dt)) cls.push("we"); if(hol) cls.push("hol");
     if(k===key(TODAY)) cls.push("tod"); if(k===calSel) cls.push("sel");
-    h+=`<button class="${cls.join(" ")}" data-k="${k}" aria-label="${fmt(dt)}${hol?" "+hol.n:""}"><span class="n">${d}</span>${hol?`<span class="h">${esc(hol.n.replace("補假","補"))}</span>`:""}</button>`;
+    h+=`<button type="button" class="${cls.join(" ")}" data-k="${k}" aria-label="${fmt(dt)}${hol?" "+hol.n:""}"><span class="n">${d}</span>${hol?`<span class="h">${esc(hol.n.replace("補假","補"))}</span>`:""}</button>`;
   }
+  for(let i=first.getUTCDay()+days;i<42;i++) h+=`<div class="day out"></div>`;
   $("calGrid").innerHTML=h;
 }
-$("calGrid").addEventListener("click",e=>{
-  const b=e.target.closest("[data-k]"); if(!b) return; calSel=b.dataset.k; renderCal();
+function selectDay(k){
+  calSel=k; renderCal();
   const d=parse(calSel), hol=HOL[calSel], n=diff(TODAY,d);
   const tag = hol?`<b style="color:var(--red)">${esc(hol.n)}</b>`: isWeekend(d)?"週末":"上班日";
   $("calInfo").innerHTML=`<b>${fmt(d)}</b>・${tag}・${rel(n)}${!covered(d.getUTCFullYear())?"・此年份尚無假日資料":""}`;
-});
+}
+$("calGrid").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b) selectDay(b.dataset.k); });
+$("calToday").onclick=()=>{ calY=TODAY.getUTCFullYear(); calM=TODAY.getUTCMonth(); selectDay(key(TODAY)); };
 $("calPrev").onclick=()=>{calM--; if(calM<0){calM=11;calY--;} renderCal();};
 $("calNext").onclick=()=>{calM++; if(calM>11){calM=0;calY++;} renderCal();};
 
@@ -447,6 +474,7 @@ function calcB(){
     <div class="sub">約 ${Math.floor(d/7)} 週又 ${d%7} 天・其中工作天 ${w} 天、放假日 ${d-w} 天</div>
     ${spansUncovered(lo,hi)?`<div class="warn">部分日期超出 2026–2027 假日資料，該段只排除週末。</div>`:""}`;
 }
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-today]"); if(!b) return; const inp=$(b.dataset.today); inp.value=key(TODAY); inp.dispatchEvent(new Event("input",{bubbles:true})); });
 ["aStart","aSign","aN","aUnit"].forEach(id=>$(id).addEventListener("input",calcA));
 ["bFrom","bTo","bIncl"].forEach(id=>$(id).addEventListener("input",calcB));
 
@@ -488,7 +516,41 @@ function renderItems(){
 
 function toggleMode(){ const off=$("fMode").value==="offset"; document.querySelectorAll(".offonly").forEach(e=>e.hidden=!off); }
 $("fMode").addEventListener("change",toggleMode); toggleMode();
-function resetForm(){ editing=null; $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; toggleMode(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
+let multi=false, picks=new Set(), pkY=TODAY.getUTCFullYear(), pkM=TODAY.getUTCMonth();
+function setMulti(on){
+  multi=on; $("multiToggle").setAttribute("aria-pressed",on);
+  $("multiToggle").textContent=on?"✓ 多選日期中（點日期可選取或取消）":"＋ 一次選多個日期";
+  $("picker").hidden=!on; $("fBaseWrap").hidden=on; $("fBase").required=!on;
+  if(on && !picks.size && $("fBase").value){ picks.add($("fBase").value); const d=parse($("fBase").value); pkY=d.getUTCFullYear(); pkM=d.getUTCMonth(); }
+  renderPicker(); updSubmit();
+}
+function updSubmit(){ if(!editing) $("fSubmit").textContent = multi&&picks.size>1 ? `新增 ${picks.size} 筆` : "新增"; }
+function renderPicker(){
+  if(!multi) return;
+  $("pkTitle").textContent=`${pkY} 年 ${pkM+1} 月`;
+  const first=mk(pkY,pkM,1), days=new Date(Date.UTC(pkY,pkM+1,0)).getUTCDate();
+  let h=[...WD].map((w,i)=>`<div class="dow${i===0||i===6?" we":""}">${w}</div>`).join("");
+  for(let i=0;i<first.getUTCDay();i++) h+=`<div class="day out"></div>`;
+  for(let d=1; d<=days; d++){
+    const dt=mk(pkY,pkM,d), k=key(dt), hol=HOL[k], cls=["day"];
+    if(isWeekend(dt)) cls.push("we"); if(hol) cls.push("hol"); if(k===key(TODAY)) cls.push("tod"); if(picks.has(k)) cls.push("sel");
+    h+=`<button type="button" class="${cls.join(" ")}" data-pk="${k}" aria-pressed="${picks.has(k)}" aria-label="${fmt(dt)}"><span class="n">${d}</span>${hol?`<span class="h">${esc(hol.n.replace("補假","補"))}</span>`:""}</button>`;
+  }
+  for(let i=first.getUTCDay()+days;i<42;i++) h+=`<div class="day out"></div>`;
+  $("pkGrid").innerHTML=h;
+  const list=[...picks].sort();
+  $("pkChips").innerHTML = list.length
+    ? `<span class="hint">已選 ${list.length} 天：</span>`+list.map(k=>`<button type="button" class="c" data-rm="${k}">${fmt(parse(k))} ×</button>`).join("")+`<button type="button" class="mini" data-clear="1">全部清除</button>`
+    : `<span class="hint">還沒選日期，點上面的日期就能選取，可以跨月份選。</span>`;
+}
+$("multiToggle").onclick=()=>setMulti(!multi);
+$("pkGrid").addEventListener("click",e=>{ const b=e.target.closest("[data-pk]"); if(!b) return; const k=b.dataset.pk; picks.has(k)?picks.delete(k):picks.add(k); renderPicker(); updSubmit(); });
+$("pkChips").addEventListener("click",e=>{ const r=e.target.closest("[data-rm]"), c=e.target.closest("[data-clear]"); if(r) picks.delete(r.dataset.rm); if(c) picks.clear(); if(r||c){ renderPicker(); updSubmit(); } });
+$("pkPrev").onclick=()=>{ pkM--; if(pkM<0){pkM=11;pkY--;} renderPicker(); };
+$("pkNext").onclick=()=>{ pkM++; if(pkM>11){pkM=0;pkY++;} renderPicker(); };
+$("pkToday").onclick=()=>{ pkY=TODAY.getUTCFullYear(); pkM=TODAY.getUTCMonth(); renderPicker(); };
+
+function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; toggleMode(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
 resetForm();
 $("fCancel").onclick=resetForm;
 
@@ -513,19 +575,25 @@ async function removeItem(id){
 }
 $("itemForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const name=$("fName").value.trim(), base=$("fBase").value;
-  if(!name||!base){ $("fErr").textContent="請填寫名稱和日期。"; $("fErr").hidden=false; return; }
-  const it={id: editing||("i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), name, base,
-    mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value,
-    yearly:$("fYearly").checked, updated:Date.now()};
-  try{ await saveItem(it); resetForm(); }
-  catch(err){ $("fErr").textContent="儲存失敗，請檢查網路後再試一次。"; $("fErr").hidden=false; }
+  const name=$("fName").value.trim();
+  const bases = multi ? [...picks].sort() : [$("fBase").value].filter(Boolean);
+  if(!name){ $("fErr").textContent="請填寫名稱。"; $("fErr").hidden=false; return; }
+  if(!bases.length){ $("fErr").textContent= multi?"請在月曆上至少選一天。":"請選擇日期。"; $("fErr").hidden=false; return; }
+  const common={ name, mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value, yearly:$("fYearly").checked, updated:Date.now() };
+  try{
+    for(const base of bases){
+      await saveItem({ id: (editing && bases.length===1) ? editing : ("i"+Date.now().toString(36)+Math.random().toString(36).slice(2,8)), base, ...common });
+    }
+    const n=bases.length; resetForm();
+    if(n>1){ const m=$("fErr"); m.textContent=`已新增 ${n} 筆「${name}」。`; m.style.color="var(--accent)"; m.hidden=false; setTimeout(()=>{m.hidden=true;m.style.color="";},4000); }
+  }
+  catch(err){ $("fErr").textContent="儲存失敗，請再試一次。"; $("fErr").hidden=false; }
 });
 $("items").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-ed]"), del=e.target.closest("[data-del]");
   if(ed){ const it=items.find(x=>x.id===ed.dataset.ed); if(!it) return; editing=it.id;
     $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d"; $("fYearly").checked=!!it.yearly;
-    toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false; $("itemForm").scrollIntoView({behavior:"smooth",block:"start"}); $("fName").focus(); }
+    if(multi) setMulti(false); $("multiRow").hidden=true; toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false; $("itemForm").scrollIntoView({behavior:"smooth",block:"start"}); $("fName").focus(); }
   if(del){ const id=del.dataset.del;
     if(confirmDel===id){ confirmDel=null; try{ await removeItem(id); }catch(err){ renderItems(); } }
     else { confirmDel=id; renderItems(); setTimeout(()=>{ if(confirmDel===id){ confirmDel=null; renderItems(); } },4000); } }
@@ -561,6 +629,7 @@ renderHero(); renderYearPick(); renderList(); renderCal(); calcA(); calcB(); ren
 })();
 </script>
 <script>
+["gesturestart","gesturechange","gestureend"].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
 if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
 </script>
 </body>
