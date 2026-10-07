@@ -171,6 +171,16 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
 .swatches input:checked+span{box-shadow:0 0 0 2px var(--ink)}
 .swatches input:focus-visible+span{outline:2px solid var(--accent);outline-offset:3px}
 .cdot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:0}
+.card.share{border-color:var(--accent)}
+.item.pick{cursor:pointer}
+.item.pick.on{border-color:var(--accent);background:var(--accent-soft)}
+.item .tick{width:22px;height:22px;border-radius:6px;border:2px solid var(--line);display:inline-flex;align-items:center;justify-content:center;margin-right:8px;vertical-align:-5px;font-size:14px;color:var(--bg)}
+.item.on .tick{background:var(--accent);border-color:var(--accent)}
+.imrows{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
+.imrows label{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px 10px;cursor:pointer;min-width:0}
+.imrows input{width:20px;height:20px;min-height:0;flex:none}
+.imrows .d{font-size:13px;color:var(--muted)}
+.imrows .dup{opacity:.5}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
 footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 @media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
@@ -247,7 +257,7 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
   <section class="panel" id="p-mine" hidden>
     <div class="bar">
       <h2>我的日期</h2>
-      <div class="row" style="align-items:center"><span class="sync"><span class="dot on"></span>資料存在這台裝置</span><button type="button" class="btn ghost" id="bkOut" style="padding:5px 12px;min-height:0">備份</button><button type="button" class="btn ghost" id="bkIn" style="padding:5px 12px;min-height:0">還原</button><input type="file" id="bkFile" accept="application/json,.json" hidden></div>
+      <div class="row" style="align-items:center"><span class="sync"><span class="dot on"></span>資料存在這台裝置</span><button type="button" class="btn ghost" id="bkOut" style="padding:5px 12px;min-height:0">備份</button><button type="button" class="btn ghost" id="bkIn" style="padding:5px 12px;min-height:0">還原</button><input type="file" id="bkFile" accept="application/json,.json" hidden><button type="button" class="btn ghost" style="padding:5px 12px;min-height:0" id="shStart">分享給朋友</button><button type="button" class="btn ghost" style="padding:5px 12px;min-height:0" id="imStart">匯入朋友分享</button></div>
     </div>
 
     <form class="card" id="itemForm" autocomplete="off">
@@ -291,6 +301,35 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
     </form>
 
     <div class="warn" id="bkMsg" hidden></div>
+    <div class="card share" id="shPanel" hidden>
+      <div id="shPick">
+        <h2>選擇要分享的日期</h2>
+        <div class="sub" id="shCount" style="color:var(--muted);font-size:13.5px;margin-block:4px 10px">點下面的日期來勾選</div>
+        <div class="row"><button type="button" class="btn ghost" id="shAll">全選</button><button type="button" class="btn" id="shMake">產生分享連結</button><button type="button" class="btn ghost" id="shCancel">取消</button></div>
+      </div>
+      <div id="shDone" hidden>
+        <h2>分享連結做好了</h2>
+        <div style="color:var(--muted);font-size:13.5px;margin-block:4px 10px">把連結傳給朋友，例如貼到 LINE。朋友點開就能把這些日期加進他的紅字日曆。</div>
+        <input id="shLink" readonly aria-label="分享連結">
+        <div class="row" style="margin-top:10px"><button type="button" class="btn" id="shCopy">複製連結</button><button type="button" class="btn ghost" id="shSend" hidden>傳送到其他 App</button><button type="button" class="btn ghost" id="shClose">完成</button></div>
+        <div class="warn" id="shMsg" hidden></div>
+      </div>
+    </div>
+    <div class="card share" id="imPanel" hidden>
+      <div id="imPaste">
+        <h2>匯入朋友分享的日期</h2>
+        <div style="color:var(--muted);font-size:13.5px;margin-block:4px 10px">把朋友傳來的分享連結貼在這裡。</div>
+        <input id="imText" placeholder="貼上分享連結" aria-label="分享連結">
+        <div class="row" style="margin-top:10px"><button type="button" class="btn" id="imRead">讀取</button><button type="button" class="btn ghost" id="imCancel1">取消</button></div>
+      </div>
+      <div id="imList" hidden>
+        <h2 id="imTitle"></h2>
+        <div style="color:var(--muted);font-size:13.5px;margin-block:4px 10px">取消勾選不想要的，再按「加入」。已經有的日期會自動略過。</div>
+        <div class="imrows" id="imRows"></div>
+        <div class="row" style="margin-top:10px"><button type="button" class="btn" id="imAdd">加入我的日期</button><button type="button" class="btn ghost" id="imCancel2">略過</button></div>
+      </div>
+      <div class="warn" id="imMsg" hidden></div>
+    </div>
     <div class="items" id="items"></div>
   </section>
 
@@ -551,11 +590,12 @@ function renderItems(){
     const how = it.mode==="offset" ? `${it.base.replaceAll("-","/")} ${+it.sign<0?"－":"＋"}${it.n} ${unitName[it.unit]}` : "";
     const hol=HOL[key(t)];
     const wdLeft = n>0 ? workdaysBetween(add(TODAY,1),t) : null;
-    return `<div class="item">
-      <div class="nm"><span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${it.yearly?` <span class="chip acc">每年${year>0?`・第 ${year} 年`:""}</span>`:""}</div>
+    const on=shSel.has(it.id);
+    return `<div class="item${shMode?" pick":""}${shMode&&on?" on":""}"${shMode?` data-pick="${it.id}" role="checkbox" aria-checked="${on}" tabindex="0"`:""}>
+      <div class="nm">${shMode?`<span class="tick">${on?"✓":""}</span>`:""}<span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${it.yearly?` <span class="chip acc">每年${year>0?`・第 ${year} 年`:""}</span>`:""}</div>
       <div class="meta">${fmt(t)}${hol?`・<span style="color:var(--red)">${esc(hol.n)}</span>`:""}${how?`<br>${how}`:""}${wdLeft!==null?`<br>還有 ${wdLeft} 個工作天${spansUncovered(TODAY,t)?"（超出假日資料部分只排除週末）":""}`:""}</div>
       <div class="cnt"><div class="v${n>=0&&n<=7?" soon":""}">${n===0?"今天":Math.abs(n)}</div><div class="u">${n===0?"":n>0?"天後":"天前"}</div></div>
-      <div class="acts"><button data-ed="${it.id}">編輯</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
+      <div class="acts"${shMode?" hidden":""}><button data-ed="${it.id}">編輯</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
     </div>`;}).join("");
 }
 
@@ -663,6 +703,67 @@ $("bkFile").onchange=async e=>{
   }catch(err){ bkMsg("這個檔案不是紅字日曆的備份檔。",false); }
   e.target.value="";
 };
+
+// ---------- 分享給朋友 ----------
+let shMode=false, shSel=new Set();
+const FIELDS=["name","base","mode","sign","n","unit","yearly","color"];
+function enc(arr){ const json=JSON.stringify({v:1,i:arr.map(it=>FIELDS.map(f=>it[f]??null))});
+  const bytes=new TextEncoder().encode(json); let bin=""; for(const b of bytes) bin+=String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
+function dec(code){ let b=code.replace(/-/g,"+").replace(/_/g,"/"); while(b.length%4) b+="=";
+  const bin=atob(b), bytes=Uint8Array.from(bin,c=>c.charCodeAt(0)); const o=JSON.parse(new TextDecoder().decode(bytes));
+  return (o.i||[]).map(r=>{ const it={}; FIELDS.forEach((f,i)=>{ if(r[i]!==null&&r[i]!==undefined) it[f]=r[i]; }); return it; })
+    .filter(it=>typeof it.name==="string"&&it.name&&/^\d{4}-\d{2}-\d{2}$/.test(it.base||""))
+    .map(it=>({...it,name:it.name.slice(0,40),mode:it.mode==="offset"?"offset":"date",sign:+it.sign<0?-1:1,n:Math.max(0,parseInt(it.n,10)||0),unit:unitName[it.unit]?it.unit:"d",yearly:!!it.yearly,color:COLORS.includes(it.color)?it.color:"c1"})); }
+function shareCount(){ $("shCount").textContent = shSel.size?`已選 ${shSel.size} 筆`:"點下面的日期來勾選"; $("shMake").disabled=!shSel.size; $("shMake").style.opacity=shSel.size?1:.5; }
+function shOpen(){ if(!items.length){ bkMsg("還沒有日期可以分享，先新增幾個吧。",false); return; }
+  imClose(); shMode=true; shSel=new Set(); $("shPanel").hidden=false; $("shPick").hidden=false; $("shDone").hidden=true; $("itemForm").hidden=true; shareCount(); renderItems(); $("shPanel").scrollIntoView({behavior:"smooth",block:"start"}); }
+function shClose(){ shMode=false; shSel.clear(); $("shPanel").hidden=true; $("itemForm").hidden=false; renderItems(); }
+$("shStart").onclick=shOpen; $("shCancel").onclick=shClose; $("shClose").onclick=shClose;
+$("shAll").onclick=()=>{ if(shSel.size===items.length) shSel.clear(); else items.forEach(it=>shSel.add(it.id)); shareCount(); renderItems(); };
+function togglePick(id){ shSel.has(id)?shSel.delete(id):shSel.add(id); shareCount(); renderItems(); }
+$("items").addEventListener("click",e=>{ if(!shMode) return; const c=e.target.closest("[data-pick]"); if(c) togglePick(c.dataset.pick); });
+$("items").addEventListener("keydown",e=>{ if(!shMode||(e.key!==" "&&e.key!=="Enter")) return; const c=e.target.closest("[data-pick]"); if(c){ e.preventDefault(); togglePick(c.dataset.pick); } });
+$("shMake").onclick=()=>{ if(!shSel.size) return;
+  const arr=items.filter(it=>shSel.has(it.id));
+  const url=location.origin+location.pathname+"#share="+enc(arr);
+  $("shLink").value=url; $("shPick").hidden=true; $("shDone").hidden=false; $("shMsg").hidden=true;
+  $("shSend").hidden=!navigator.share; $("shSend").dataset.n=arr.length; };
+function shMsg(t){ const m=$("shMsg"); m.textContent=t; m.style.color="var(--accent)"; m.hidden=false; }
+$("shCopy").onclick=async()=>{ const v=$("shLink").value;
+  try{ await navigator.clipboard.writeText(v); shMsg("已複製，可以貼給朋友了。"); }
+  catch(e){ $("shLink").focus(); $("shLink").select(); try{ document.execCommand("copy"); shMsg("已複製，可以貼給朋友了。"); }catch(_){ shMsg("請長按上面的連結手動複製。"); } } };
+$("shSend").onclick=async()=>{ try{ await navigator.share({title:"紅字日曆",text:`我分享了 ${$("shSend").dataset.n} 個日期給你，點連結就能加進你的紅字日曆：`,url:$("shLink").value}); }catch(e){} };
+$("shLink").addEventListener("focus",e=>e.target.select());
+
+// ---------- 匯入朋友分享 ----------
+let imItems=[];
+function imClose(){ $("imPanel").hidden=true; $("imMsg").hidden=true; imItems=[]; }
+function imMsg(t,ok){ const m=$("imMsg"); m.textContent=t; m.style.color=ok?"var(--accent)":"var(--red)"; m.hidden=false; }
+const sameKey=it=>it.name+"|"+it.base+"|"+(it.mode||"date")+"|"+(it.n||0)+"|"+(it.unit||"d");
+function imShow(list){
+  imItems=list; const have=new Set(items.map(sameKey));
+  $("imPanel").hidden=false; $("imPaste").hidden=true; $("imList").hidden=false; $("imMsg").hidden=true;
+  $("imTitle").textContent=`朋友分享了 ${list.length} 個日期給你`;
+  $("imRows").innerHTML=list.map((it,i)=>{ const dup=have.has(sameKey(it)); const t=target(it).t;
+    return `<label class="${dup?"dup":""}"><input type="checkbox" data-im="${i}" ${dup?"disabled":"checked"}><span class="cdot" style="background:var(--${it.color})"></span><span style="min-width:0"><b>${esc(it.name)}</b>${it.yearly?` <span class="chip acc">每年</span>`:""}<br><span class="d">${fmt(t)}${dup?"・你已經有了":""}</span></span></label>`; }).join("");
+}
+function imFromText(txt){ const m=String(txt).match(/share=([A-Za-z0-9_-]+)/); if(!m) throw 0; const list=dec(m[1]); if(!list.length) throw 0; return list; }
+$("imStart").onclick=()=>{ if(shMode) shClose(); $("imPanel").hidden=false; $("imPaste").hidden=false; $("imList").hidden=true; $("imMsg").hidden=true; $("imText").value=""; $("imText").focus(); };
+$("imCancel1").onclick=imClose; $("imCancel2").onclick=imClose;
+$("imRead").onclick=()=>{ try{ imShow(imFromText($("imText").value)); }catch(e){ imMsg("讀不到日期，請確認貼上的是完整的分享連結。",false); } };
+$("imAdd").onclick=()=>{
+  const picked=[...document.querySelectorAll("#imRows input[data-im]:checked")].map(c=>imItems[+c.dataset.im]);
+  if(!picked.length){ imMsg("沒有勾選任何日期。",false); return; }
+  picked.forEach(it=>items.push({...it,id:"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,8),updated:Date.now()}));
+  lsSave(); renderItems(); imClose(); bkMsg(`已加入 ${picked.length} 個朋友分享的日期，國定假日月曆上也看得到。`,true);
+};
+// 從分享連結開啟
+(function(){
+  const m=(location.hash||"").match(/^#share=([A-Za-z0-9_-]+)/); if(!m) return;
+  try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){}
+  setTimeout(()=>{ show("mine"); try{ imShow(dec(m[1])); }catch(e){ $("imPanel").hidden=false; $("imPaste").hidden=true; imMsg("這個分享連結不完整，請朋友重新傳一次。",false); } $("imPanel").scrollIntoView({block:"start"}); },0);
+})();
 
 // ---------- 分頁 ----------
 const tabs=document.querySelectorAll("[data-tab]");
