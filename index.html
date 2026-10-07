@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>紅字日曆</title>
+<meta name="description" content="台灣國定假日、連假倒數、工作天推算與自訂日期">
+<meta name="theme-color" content="#0E6B58">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="紅字日曆">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one narrow column of tools on phone, widening to a two-column holiday grid on desktop; segmented tabs pinned at top. */
+:root{
+  --bg:#F3F5F3; --surface:#FFFFFF; --ink:#1B2220; --muted:#66716D; --line:#DCE2DF;
+  --accent:#0E6B58; --accent-soft:#E1F0EB; --red:#C4302A; --red-soft:#FBE7E5;
+  --f-display:"Noto Serif TC","Songti TC","PMingLiU",serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111614; --surface:#1A201E; --ink:#E7ECEA; --muted:#94A19C; --line:#2B3431;
+  --accent:#55C4A8; --accent-soft:#16302A; --red:#FF6F62; --red-soft:#3A1E1C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111614; --surface:#1A201E; --ink:#E7ECEA; --muted:#94A19C; --line:#2B3431;
+  --accent:#55C4A8; --accent-soft:#16302A; --red:#FF6F62; --red-soft:#3A1E1C; color-scheme:dark}
+*{box-sizing:border-box}
+html{color-scheme:light}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);font-variant-numeric:tabular-nums}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+h1{font:900 30px/1.1 var(--f-display);margin:0;letter-spacing:.02em}
+h1 span{color:var(--red)}
+.today{font-size:13px;color:var(--muted)}
+.today b{color:var(--ink);font-weight:500}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;margin-bottom:12px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px}
+.seg button{border:0;background:none;color:var(--muted);font:500 15px var(--f-body);padding:9px 6px;border-radius:999px;cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--accent);color:var(--bg)}
+button,input,select{font-family:inherit;font-size:15px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font:700 19px/1.3 var(--f-display);margin:0;text-wrap:balance}
+.label{font-size:12px;letter-spacing:.08em;color:var(--muted)}
+section.panel{display:flex;flex-direction:column;gap:18px}
+
+/* hero */
+.hero{display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.hero .num{grid-row:span 3;font:900 64px/1 var(--f-display);color:var(--red)}
+.hero .num small{font:500 15px var(--f-body);color:var(--muted);margin-left:2px}
+.hero .name{font:700 20px/1.3 var(--f-display)}
+.hero .when{color:var(--muted);font-size:14px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 9px;border-radius:999px;background:var(--red-soft);color:var(--red);font-weight:500;white-space:nowrap}
+.chip.acc{background:var(--accent-soft);color:var(--accent)}
+.chip.mute{background:transparent;border:1px solid var(--line);color:var(--muted)}
+
+/* year controls */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.yearpick{display:flex;gap:6px}
+.pill{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+.pill[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);font-weight:700}
+.check{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);cursor:pointer}
+
+/* holiday list */
+.hlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:10px}
+.hcard{display:grid;grid-template-columns:62px 1fr auto;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-width:0}
+.hcard.past{opacity:.55}
+.hcard.now{border-color:var(--red)}
+.hdate{text-align:center;border-right:1px solid var(--line);padding-right:10px}
+.hdate .m{font:500 11px var(--f-data);color:var(--muted)}
+.hdate .d{font:900 24px/1.1 var(--f-display);color:var(--red)}
+.hmain{min-width:0}
+.hmain .t{font-weight:700}
+.hmain .s{font-size:13px;color:var(--muted)}
+.hright{text-align:right;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.hright .cd{font-size:13px;color:var(--muted)}
+
+/* calendar */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.calhead h2{font-size:18px}
+.iconbtn{border:1px solid var(--line);background:none;color:var(--ink);border-radius:8px;width:36px;height:36px;cursor:pointer;font-size:16px}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dow{text-align:center;font-size:12px;color:var(--muted);padding-block:4px}
+.dow.we{color:var(--red)}
+.day{aspect-ratio:1/1;max-width:100%;border:1px solid transparent;border-radius:8px;background:none;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:2px;min-width:0}
+.day .n{font-weight:500;font-size:15px;line-height:1.1}
+.day .h{font-size:9.5px;line-height:1.2;color:var(--red);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.day.we .n{color:var(--red)}
+.day.hol{background:var(--red-soft)}
+.day.hol .n{color:var(--red);font-weight:700}
+.day.out{visibility:hidden}
+.day.tod{border-color:var(--accent)}
+.day.sel{background:var(--accent);}
+.day.sel .n,.day.sel .h{color:var(--bg)}
+.calinfo{margin-top:10px;font-size:14px;color:var(--muted);min-height:1.6em}
+.calinfo b{color:var(--ink)}
+
+/* forms / calculator */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 130px}
+.field.sm{flex:0 1 92px}
+.field label{font-size:12px;color:var(--muted);letter-spacing:.04em}
+input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px 10px;min-height:40px}
+.result{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:2px}
+.result .big{font:900 26px/1.25 var(--f-display)}
+.result .big.red{color:var(--red)}
+.result .sub{font-size:13px;color:var(--muted)}
+.warn{font-size:12.5px;color:var(--red)}
+.btn{border:0;background:var(--accent);color:var(--bg);font-weight:700;border-radius:8px;padding:9px 16px;cursor:pointer;min-height:40px}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--ink);font-weight:500}
+.btn.danger{background:var(--red)}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.quick button{border:1px dashed var(--line);background:none;color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px}
+
+/* my items */
+.sync{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--accent)}
+.items{display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;min-width:0}
+.item .nm{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.item .meta{font-size:13px;color:var(--muted);grid-column:1;min-width:0}
+.item .cnt{grid-row:1 / span 2;grid-column:2;text-align:right}
+.item .cnt .v{font:900 26px/1 var(--f-display)}
+.item .cnt .v.soon{color:var(--red)}
+.item .cnt .u{font-size:12px;color:var(--muted)}
+.item .acts{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.item .acts button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:13px}
+.item .acts button.confirm{border-color:var(--red);color:var(--red)}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
+footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
+@media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>紅字<span>日曆</span></h1>
+    <div class="today" id="todayLine"></div>
+  </header>
+
+  <nav class="tabs" aria-label="功能">
+    <div class="seg" role="tablist">
+      <button role="tab" id="tab-hol" aria-selected="true" data-tab="hol">國定假日</button>
+      <button role="tab" id="tab-calc" aria-selected="false" data-tab="calc">日期計算</button>
+      <button role="tab" id="tab-mine" aria-selected="false" data-tab="mine">我的日期</button>
+    </div>
+  </nav>
+
+  <!-- 假日 -->
+  <section class="panel" id="p-hol">
+    <div class="hero" id="hero"></div>
+    <div class="cal">
+      <div class="calhead">
+        <button class="iconbtn" id="calPrev" aria-label="上個月">‹</button>
+        <h2 id="calTitle"></h2>
+        <button class="iconbtn" id="calNext" aria-label="下個月">›</button>
+      </div>
+      <div class="grid7" id="calGrid"></div>
+      <div class="calinfo" id="calInfo">點任一天看詳細資訊</div>
+    </div>
+    <div class="bar">
+      <div class="yearpick" id="yearPick"></div>
+      <label class="check"><input type="checkbox" id="showPast" style="width:auto;min-height:0"> 顯示已過的假期</label>
+    </div>
+    <div class="label" id="yearSummary"></div>
+    <div class="hlist" id="hlist"></div>
+  </section>
+
+  <!-- 計算 -->
+  <section class="panel" id="p-calc" hidden>
+    <div class="two">
+      <div class="card">
+        <h2>日期推算</h2>
+        <div class="row">
+          <div class="field"><label for="aStart">起始日</label><input type="date" id="aStart"></div>
+        </div>
+        <div class="row">
+          <div class="field sm"><label for="aSign">加減</label><select id="aSign"><option value="1">往後 ＋</option><option value="-1">往前 －</option></select></div>
+          <div class="field sm"><label for="aN">數量</label><input type="number" id="aN" value="30" min="0" inputmode="numeric"></div>
+          <div class="field"><label for="aUnit">單位</label>
+            <select id="aUnit"><option value="d">天（日曆天）</option><option value="w">工作天（排除週末與國定假日）</option><option value="wk">週</option><option value="m">個月</option><option value="y">年</option></select></div>
+        </div>
+        <div class="result" id="aOut"></div>
+      </div>
+
+      <div class="card">
+        <h2>兩個日期相差幾天</h2>
+        <div class="row">
+          <div class="field"><label for="bFrom">開始</label><input type="date" id="bFrom"></div>
+          <div class="field"><label for="bTo">結束</label><input type="date" id="bTo"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="bIncl" style="width:auto;min-height:0"> 頭尾兩天都算進去</label>
+        <div class="result" id="bOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 我的日期 -->
+  <section class="panel" id="p-mine" hidden>
+    <div class="bar">
+      <h2>我的日期</h2>
+      <div class="row" style="align-items:center"><span class="sync"><span class="dot on"></span>資料存在這台裝置</span><button type="button" class="btn ghost" id="bkOut" style="padding:5px 12px;min-height:0">備份</button><button type="button" class="btn ghost" id="bkIn" style="padding:5px 12px;min-height:0">還原</button><input type="file" id="bkFile" accept="application/json,.json" hidden></div>
+    </div>
+
+    <form class="card" id="itemForm" autocomplete="off">
+      <div class="row">
+        <div class="field" style="flex:2 1 180px"><label for="fName">名稱</label><input id="fName" required maxlength="40" placeholder="例如：合約到期、媽媽生日"></div>
+        <div class="field"><label for="fBase">日期</label><input type="date" id="fBase" required></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="fMode">怎麼算</label>
+          <select id="fMode"><option value="date">就是這一天（倒數／已過幾天）</option><option value="offset">從這天往後或往前推算</option></select></div>
+        <div class="field sm offonly"><label for="fSign">加減</label><select id="fSign"><option value="1">＋</option><option value="-1">－</option></select></div>
+        <div class="field sm offonly"><label for="fN">數量</label><input type="number" id="fN" value="30" min="0" inputmode="numeric"></div>
+        <div class="field offonly"><label for="fUnit">單位</label><select id="fUnit"><option value="d">天</option><option value="w">工作天</option><option value="wk">週</option><option value="m">個月</option><option value="y">年</option></select></div>
+      </div>
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <label class="check"><input type="checkbox" id="fYearly" style="width:auto;min-height:0"> 每年重複（生日、紀念日）</label>
+        <div class="row">
+          <button type="button" class="btn ghost" id="fCancel" hidden>取消編輯</button>
+          <button type="submit" class="btn" id="fSubmit">新增</button>
+        </div>
+      </div>
+      <div class="quick" id="quick">
+        <span class="label" style="align-self:center">快速範本</span>
+        <button type="button" data-q="bday">生日（每年）</button>
+        <button type="button" data-q="contract">合約到期（＋90 天）</button>
+        <button type="button" data-q="pay">付款期限（＋30 工作天）</button>
+        <button type="button" data-q="anni">交往紀念日（已過幾天）</button>
+      </div>
+      <div class="warn" id="fErr" hidden></div>
+    </form>
+
+    <div class="warn" id="bkMsg" hidden></div>
+    <div class="items" id="items"></div>
+  </section>
+
+  <footer>
+    安裝方式：iPhone 用 Safari「分享 → 加入主畫面」；Android 用 Chrome「⋮ → 安裝應用程式」。<br>假日資料依行政院人事行政總處公告之 115 年（2026）與 116 年（2027）政府行政機關辦公日曆表，兩年皆無補班日。民間企業放假依勞動部規定，可能與公務機關不同。其他年份計算工作天時只排除週末。
+  </footer>
+</div>
+
+<script>
+(function(){
+// ---------- 假日資料 [MMDD, 名稱, 節日群組] ----------
+const RAW = {
+ 2026:[["0101","開國紀念日","元旦"],
+  ["0215","小年夜","農曆春節"],["0216","除夕","農曆春節"],["0217","春節初一","農曆春節"],["0218","春節初二","農曆春節"],["0219","春節初三","農曆春節"],["0220","小年夜補假","農曆春節"],
+  ["0227","和平紀念日補假","和平紀念日"],["0228","和平紀念日","和平紀念日"],
+  ["0403","兒童節補假","兒童節及清明節"],["0404","兒童節","兒童節及清明節"],["0405","清明節","兒童節及清明節"],["0406","清明節補假","兒童節及清明節"],
+  ["0501","勞動節","勞動節"],["0619","端午節","端午節"],
+  ["0925","中秋節","中秋節"],["0928","教師節","教師節"],
+  ["1009","國慶日補假","國慶日"],["1010","國慶日","國慶日"],
+  ["1025","光復節","光復節"],["1026","光復節補假","光復節"],
+  ["1225","行憲紀念日","行憲紀念日"]],
+ 2027:[["0101","開國紀念日","元旦"],
+  ["0204","小年夜","農曆春節"],["0205","除夕","農曆春節"],["0206","春節初一","農曆春節"],["0207","春節初二","農曆春節"],["0208","春節初三","農曆春節"],["0209","春節補假","農曆春節"],["0210","春節補假","農曆春節"],
+  ["0228","和平紀念日","和平紀念日"],["0301","和平紀念日補假","和平紀念日"],
+  ["0404","兒童節","兒童節及清明節"],["0405","清明節","兒童節及清明節"],["0406","兒童節補假","兒童節及清明節"],
+  ["0430","勞動節補假","勞動節"],["0501","勞動節","勞動節"],
+  ["0609","端午節","端午節"],["0915","中秋節","中秋節"],["0928","教師節","教師節"],
+  ["1010","國慶日","國慶日"],["1011","國慶日補假","國慶日"],
+  ["1025","光復節","光復節"],
+  ["1224","行憲紀念日補假","行憲紀念日"],["1225","行憲紀念日","行憲紀念日"],
+  ["1231","117年元旦補假","元旦"]]
+};
+const MAKEUP = {}; // 補班日：115、116 年皆無
+const HOL = {};
+for (const y in RAW) for (const [md,n,g] of RAW[y]) HOL[`${y}-${md.slice(0,2)}-${md.slice(2)}`] = {n,g};
+const YEARS = Object.keys(RAW).map(Number);
+const covered = y => YEARS.includes(y);
+
+// ---------- 日期工具（全部以 UTC 午夜表示「某一天」）----------
+const DAY = 864e5, WD = "日一二三四五六";
+const mk = (y,m,d) => new Date(Date.UTC(y,m,d));
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return mk(y,m-1,d); };
+const key = d => d.toISOString().slice(0,10);
+const now = new Date(); const TODAY = mk(now.getFullYear(), now.getMonth(), now.getDate());
+const add = (d,n) => new Date(d.getTime()+n*DAY);
+const diff = (a,b) => Math.round((b-a)/DAY);
+const wd = d => WD[d.getUTCDay()];
+const isWeekend = d => d.getUTCDay()===0 || d.getUTCDay()===6;
+const isOff = d => !MAKEUP[key(d)] && (isWeekend(d) || !!HOL[key(d)]);
+const md = d => `${d.getUTCMonth()+1}/${d.getUTCDate()}`;
+const fmt = d => `${d.getUTCFullYear()}/${md(d)}（${wd(d)}）`;
+const roc = d => `民國 ${d.getUTCFullYear()-1911} 年 ${d.getUTCMonth()+1} 月 ${d.getUTCDate()} 日`;
+function addMonths(d,n){
+  const y=d.getUTCFullYear(), m=d.getUTCMonth()+n, day=d.getUTCDate();
+  const last = new Date(Date.UTC(y,m+1,0)).getUTCDate();
+  return mk(y,m,Math.min(day,last));
+}
+function addWork(d,n){
+  let step = n<0?-1:1, left=Math.abs(n), cur=d;
+  while(left>0){ cur=add(cur,step); if(!isOff(cur)) left--; }
+  return cur;
+}
+function shift(d,n,unit){
+  switch(unit){
+    case "d": return add(d,n);
+    case "wk": return add(d,7*n);
+    case "m": return addMonths(d,n);
+    case "y": return addMonths(d,12*n);
+    case "w": return addWork(d,n);
+  }
+}
+function workdaysBetween(a,b){ // 含頭尾
+  if(b<a) [a,b]=[b,a];
+  let c=0; for(let d=a; d<=b; d=add(d,1)) if(!isOff(d)) c++;
+  return c;
+}
+function spansUncovered(a,b){
+  const y1=Math.min(a.getUTCFullYear(),b.getUTCFullYear()), y2=Math.max(a.getUTCFullYear(),b.getUTCFullYear());
+  for(let y=y1;y<=y2;y++) if(!covered(y)) return true; return false;
+}
+const unitName = {d:"天",w:"工作天",wk:"週",m:"個月",y:"年"};
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function rel(n){ return n===0?"就是今天": n>0?`還有 ${n} 天`:`已過 ${-n} 天`; }
+
+$("todayLine").innerHTML = `今天 <b>${fmt(TODAY)}</b>・${roc(TODAY)}`;
+
+// ---------- 連假區塊 ----------
+function blocksOf(year){
+  const keys = Object.keys(HOL).filter(k=>k.startsWith(year+"-")).sort();
+  const blocks=[];
+  for(const k of keys){
+    let s=parse(k), e=s;
+    while(isOff(add(s,-1))) s=add(s,-1);
+    while(isOff(add(e,1))) e=add(e,1);
+    const last=blocks[blocks.length-1];
+    if(last && key(last.s)===key(s)){ if(!last.g.includes(HOL[k].g)) last.g.push(HOL[k].g); last.days.push(k); }
+    else blocks.push({s,e,g:[HOL[k].g],days:[k]});
+  }
+  return blocks;
+}
+const allBlocks = YEARS.flatMap(blocksOf);
+
+// ---------- Hero ----------
+function renderHero(){
+  const cur = allBlocks.find(b=>b.s<=TODAY && b.e>=TODAY && b.days.some(k=>HOL[k]));
+  const next = allBlocks.find(b=>b.s>TODAY);
+  const el=$("hero");
+  if(cur){
+    const left=diff(TODAY,cur.e)+1;
+    el.innerHTML=`<div class="num">${left}<small>天</small></div>
+      <div class="label">放假中・連假還剩</div><div class="name">${cur.g.join("・")}</div>
+      <div class="when">${md(cur.s)}（${wd(cur.s)}）– ${md(cur.e)}（${wd(cur.e)}）</div>`;
+  } else if(next){
+    const len=diff(next.s,next.e)+1, n=diff(TODAY,next.s);
+    el.innerHTML=`<div class="num">${n}<small>天後</small></div>
+      <div class="label">下一個假期</div><div class="name">${next.g.join("・")}</div>
+      <div class="when">${fmt(next.s)} 起・<span class="chip">${len>=3?"連休 ":"放假 "}${len} 天</span></div>`;
+  } else el.innerHTML=`<div class="name">目前沒有更多假日資料</div>`;
+}
+
+// ---------- 年度列表 ----------
+let curYear = YEARS.includes(TODAY.getUTCFullYear()) ? TODAY.getUTCFullYear() : YEARS[0];
+function renderYearPick(){
+  $("yearPick").innerHTML = YEARS.map(y=>`<button class="pill" aria-pressed="${y===curYear}" data-y="${y}">${y}（${y-1911}年）</button>`).join("");
+}
+$("yearPick").addEventListener("click",e=>{const b=e.target.closest("[data-y]"); if(!b) return; curYear=+b.dataset.y; renderYearPick(); renderList();});
+$("showPast").addEventListener("change",renderList);
+function renderList(){
+  const bl=blocksOf(curYear), showPast=$("showPast").checked;
+  let total=0; const start=mk(curYear,0,1);
+  for(let d=start; d.getUTCFullYear()===curYear; d=add(d,1)) if(isOff(d)) total++;
+  const longs=bl.filter(b=>diff(b.s,b.e)+1>=3).length;
+  $("yearSummary").textContent=`${curYear} 年全年放假 ${total} 天（含週末）・3 天以上連假 ${longs} 個`;
+  const rows = bl.filter(b=>showPast || b.e>=TODAY);
+  if(!rows.length){ $("hlist").innerHTML=`<div class="empty">今年的假期都過完了，勾選「顯示已過的假期」可以回顧。</div>`; return; }
+  $("hlist").innerHTML = rows.map(b=>{
+    const len=diff(b.s,b.e)+1, past=b.e<TODAY, now=b.s<=TODAY&&b.e>=TODAY;
+    const names=b.days.map(k=>HOL[k].n);
+    const comp = names.filter(n=>/補假/.test(n));
+    const main = names.filter(n=>!/補假/.test(n));
+    const cd = now?`<span class="chip">放假中</span>`: past?`<span class="cd">已過</span>`:`<span class="cd">${diff(TODAY,b.s)} 天後</span>`;
+    return `<div class="hcard${past?" past":""}${now?" now":""}">
+      <div class="hdate"><div class="m">${b.s.getUTCMonth()+1}月</div><div class="d">${b.s.getUTCDate()}</div></div>
+      <div class="hmain"><div class="t">${esc(b.g.join("・"))}</div>
+        <div class="s">${md(b.s)}（${wd(b.s)}）${len>1?` – ${md(b.e)}（${wd(b.e)}）`:""}${comp.length?`・含${esc(comp.join("、"))}`:""}</div>
+        <div class="s">${esc(main.join("、"))}</div></div>
+      <div class="hright"><span class="chip${len>=3?"":" mute"}">${len>=3?"連休":"放"} ${len} 天</span>${cd}</div>
+    </div>`;}).join("");
+}
+
+// ---------- 月曆 ----------
+let calY=TODAY.getUTCFullYear(), calM=TODAY.getUTCMonth(), calSel=null;
+function renderCal(){
+  $("calTitle").textContent=`${calY} 年 ${calM+1} 月`;
+  const first=mk(calY,calM,1), days=new Date(Date.UTC(calY,calM+1,0)).getUTCDate();
+  let h=[...WD].map((w,i)=>`<div class="dow${i===0||i===6?" we":""}">${w}</div>`).join("");
+  for(let i=0;i<first.getUTCDay();i++) h+=`<div class="day out"></div>`;
+  for(let d=1; d<=days; d++){
+    const dt=mk(calY,calM,d), k=key(dt), hol=HOL[k];
+    const cls=["day"]; if(isWeekend(dt)) cls.push("we"); if(hol) cls.push("hol");
+    if(k===key(TODAY)) cls.push("tod"); if(k===calSel) cls.push("sel");
+    h+=`<button class="${cls.join(" ")}" data-k="${k}" aria-label="${fmt(dt)}${hol?" "+hol.n:""}"><span class="n">${d}</span>${hol?`<span class="h">${esc(hol.n.replace("補假","補"))}</span>`:""}</button>`;
+  }
+  $("calGrid").innerHTML=h;
+}
+$("calGrid").addEventListener("click",e=>{
+  const b=e.target.closest("[data-k]"); if(!b) return; calSel=b.dataset.k; renderCal();
+  const d=parse(calSel), hol=HOL[calSel], n=diff(TODAY,d);
+  const tag = hol?`<b style="color:var(--red)">${esc(hol.n)}</b>`: isWeekend(d)?"週末":"上班日";
+  $("calInfo").innerHTML=`<b>${fmt(d)}</b>・${tag}・${rel(n)}${!covered(d.getUTCFullYear())?"・此年份尚無假日資料":""}`;
+});
+$("calPrev").onclick=()=>{calM--; if(calM<0){calM=11;calY--;} renderCal();};
+$("calNext").onclick=()=>{calM++; if(calM>11){calM=0;calY++;} renderCal();};
+
+// ---------- 計算 ----------
+$("aStart").value=key(TODAY); $("bFrom").value=key(TODAY); $("bTo").value=key(mk(TODAY.getUTCFullYear(),11,31));
+function calcA(){
+  const out=$("aOut"); const s=$("aStart").value, n=parseInt($("aN").value,10);
+  if(!s||isNaN(n)){ out.innerHTML=`<div class="sub">輸入起始日和數量就會算出結果。</div>`; return; }
+  const st=parse(s), sign=+$("aSign").value, unit=$("aUnit").value, r=shift(st,sign*n,unit), hol=HOL[key(r)];
+  out.innerHTML=`<div class="label">結果</div>
+    <div class="big${hol||isWeekend(r)?" red":""}">${fmt(r)}</div>
+    <div class="sub">${roc(r)}・${rel(diff(TODAY,r))}</div>
+    ${hol?`<div class="warn">這天是${esc(hol.n)}，放假。</div>`: isWeekend(r)?`<div class="warn">這天是週${wd(r)}。</div>`:""}
+    ${unit==="w"&&spansUncovered(st,r)?`<div class="warn">部分日期超出 2026–2027 假日資料，該段只排除週末。</div>`:""}`;
+}
+function calcB(){
+  const out=$("bOut"); const a=$("bFrom").value, b=$("bTo").value;
+  if(!a||!b){ out.innerHTML=`<div class="sub">選好兩個日期就會算出相差天數。</div>`; return; }
+  const A=parse(a), B=parse(b), incl=$("bIncl").checked;
+  let d=Math.abs(diff(A,B)); if(incl) d+=1;
+  const lo=A<B?A:B, hi=A<B?B:A;
+  let w=workdaysBetween(lo,hi);
+  if(!incl){ if(!isOff(lo)) w--; } // 不含頭：扣掉起始日
+  w=Math.max(0,w);
+  out.innerHTML=`<div class="label">相差</div><div class="big">${d} 天</div>
+    <div class="sub">約 ${Math.floor(d/7)} 週又 ${d%7} 天・其中工作天 ${w} 天、放假日 ${d-w} 天</div>
+    ${spansUncovered(lo,hi)?`<div class="warn">部分日期超出 2026–2027 假日資料，該段只排除週末。</div>`:""}`;
+}
+["aStart","aSign","aN","aUnit"].forEach(id=>$(id).addEventListener("input",calcA));
+["bFrom","bTo","bIncl"].forEach(id=>$(id).addEventListener("input",calcB));
+
+// ---------- 我的日期 ----------
+let items=[], editing=null, confirmDel=null;
+const LS="redletter-items";
+function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||"[]"); }catch(e){ return []; } }
+function lsSave(){ try{ localStorage.setItem(LS,JSON.stringify(items)); }catch(e){} }
+items = lsLoad();
+
+function target(it){
+  let t=parse(it.base);
+  if(it.mode==="offset") t=shift(t,(+it.sign||1)*(+it.n||0),it.unit);
+  let year=null;
+  if(it.yearly){
+    const m=t.getUTCMonth(), d=t.getUTCDate(), by=t.getUTCFullYear();
+    let y=TODAY.getUTCFullYear(), c=addMonths(mk(y,m,1),0); c=mk(y,m,Math.min(d,new Date(Date.UTC(y,m+1,0)).getUTCDate()));
+    if(c<TODAY){ y++; c=mk(y,m,Math.min(d,new Date(Date.UTC(y,m+1,0)).getUTCDate())); }
+    year=y-by; t=c;
+  }
+  return {t,year};
+}
+function renderItems(){
+  const box=$("items");
+  if(!items.length){ box.innerHTML=`<div class="empty">還沒有自訂日期。在上方輸入名稱和日期，或點一個快速範本開始。</div>`; return; }
+  const list=items.map(it=>({it,...target(it)})).map(o=>({...o,n:diff(TODAY,o.t)}))
+    .sort((a,b)=>(a.n<0)-(b.n<0) || (a.n>=0? a.n-b.n : b.n-a.n));
+  box.innerHTML=list.map(({it,t,n,year})=>{
+    const how = it.mode==="offset" ? `${it.base.replaceAll("-","/")} ${+it.sign<0?"－":"＋"}${it.n} ${unitName[it.unit]}` : "";
+    const hol=HOL[key(t)];
+    const wdLeft = n>0 ? workdaysBetween(add(TODAY,1),t) : null;
+    return `<div class="item">
+      <div class="nm">${esc(it.name)}${it.yearly?` <span class="chip acc">每年${year>0?`・第 ${year} 年`:""}</span>`:""}</div>
+      <div class="meta">${fmt(t)}${hol?`・<span style="color:var(--red)">${esc(hol.n)}</span>`:""}${how?`<br>${how}`:""}${wdLeft!==null?`<br>還有 ${wdLeft} 個工作天${spansUncovered(TODAY,t)?"（超出假日資料部分只排除週末）":""}`:""}</div>
+      <div class="cnt"><div class="v${n>=0&&n<=7?" soon":""}">${n===0?"今天":Math.abs(n)}</div><div class="u">${n===0?"":n>0?"天後":"天前"}</div></div>
+      <div class="acts"><button data-ed="${it.id}">編輯</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
+    </div>`;}).join("");
+}
+
+function toggleMode(){ const off=$("fMode").value==="offset"; document.querySelectorAll(".offonly").forEach(e=>e.hidden=!off); }
+$("fMode").addEventListener("change",toggleMode); toggleMode();
+function resetForm(){ editing=null; $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; toggleMode(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
+resetForm();
+$("fCancel").onclick=resetForm;
+
+const QUICK={
+  bday:{name:"生日",mode:"date",yearly:true},
+  contract:{name:"合約到期",mode:"offset",sign:1,n:90,unit:"d"},
+  pay:{name:"付款期限",mode:"offset",sign:1,n:30,unit:"w"},
+  anni:{name:"交往紀念日",mode:"date"}
+};
+$("quick").addEventListener("click",e=>{
+  const b=e.target.closest("[data-q]"); if(!b) return; const q=QUICK[b.dataset.q];
+  $("fName").value=q.name; $("fMode").value=q.mode; $("fYearly").checked=!!q.yearly;
+  if(q.mode==="offset"){ $("fSign").value=q.sign; $("fN").value=q.n; $("fUnit").value=q.unit; }
+  toggleMode(); $("fName").focus(); $("fName").select();
+});
+
+async function saveItem(it){
+  { const i=items.findIndex(x=>x.id===it.id); if(i>=0) items[i]=it; else items.push(it); lsSave(); renderItems(); }
+}
+async function removeItem(id){
+  { items=items.filter(x=>x.id!==id); lsSave(); renderItems(); }
+}
+$("itemForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const name=$("fName").value.trim(), base=$("fBase").value;
+  if(!name||!base){ $("fErr").textContent="請填寫名稱和日期。"; $("fErr").hidden=false; return; }
+  const it={id: editing||("i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)), name, base,
+    mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value,
+    yearly:$("fYearly").checked, updated:Date.now()};
+  try{ await saveItem(it); resetForm(); }
+  catch(err){ $("fErr").textContent="儲存失敗，請檢查網路後再試一次。"; $("fErr").hidden=false; }
+});
+$("items").addEventListener("click",async e=>{
+  const ed=e.target.closest("[data-ed]"), del=e.target.closest("[data-del]");
+  if(ed){ const it=items.find(x=>x.id===ed.dataset.ed); if(!it) return; editing=it.id;
+    $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d"; $("fYearly").checked=!!it.yearly;
+    toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false; $("itemForm").scrollIntoView({behavior:"smooth",block:"start"}); $("fName").focus(); }
+  if(del){ const id=del.dataset.del;
+    if(confirmDel===id){ confirmDel=null; try{ await removeItem(id); }catch(err){ renderItems(); } }
+    else { confirmDel=id; renderItems(); setTimeout(()=>{ if(confirmDel===id){ confirmDel=null; renderItems(); } },4000); } }
+});
+
+// 備份／還原（把資料搬到另一台裝置）
+function bkMsg(t,ok){ const m=$("bkMsg"); m.textContent=t; m.style.color=ok?"var(--accent)":"var(--red)"; m.hidden=false; setTimeout(()=>m.hidden=true,5000); }
+$("bkOut").onclick=()=>{
+  const blob=new Blob([JSON.stringify({app:"redletter",v:1,items},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`紅字日曆備份-${key(TODAY)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  bkMsg(`已匯出 ${items.length} 筆日期。`,true);
+};
+$("bkIn").onclick=()=>$("bkFile").click();
+$("bkFile").onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const data=JSON.parse(await f.text()); const arr=Array.isArray(data)?data:data.items;
+    if(!Array.isArray(arr)) throw 0;
+    const have=new Set(items.map(x=>x.id)); let n=0;
+    for(const x of arr){ if(x&&x.id&&x.name&&/^\d{4}-\d{2}-\d{2}$/.test(x.base)&&!have.has(x.id)){ items.push(x); n++; } }
+    lsSave(); renderItems(); bkMsg(`已還原 ${n} 筆日期（重複的已略過）。`,true);
+  }catch(err){ bkMsg("這個檔案不是紅字日曆的備份檔。",false); }
+  e.target.value="";
+};
+
+// ---------- 分頁 ----------
+const tabs=document.querySelectorAll("[data-tab]");
+function show(t){ tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); ["hol","calc","mine"].forEach(p=>$("p-"+p).hidden=p!==t); }
+tabs.forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab)));
+const h=(location.hash||"").slice(1); if(["hol","calc","mine"].includes(h)) show(h);
+
+renderHero(); renderYearPick(); renderList(); renderCal(); calcA(); calcB(); renderItems();
+})();
+</script>
+<script>
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
