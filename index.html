@@ -181,6 +181,11 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
 .imrows input{width:20px;height:20px;min-height:0;flex:none}
 .imrows .d{font-size:13px;color:var(--muted)}
 .imrows .dup{opacity:.5}
+.remind{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.remind button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--rc);background:var(--surface);color:var(--ink);border-radius:10px;padding:9px 12px;cursor:pointer;min-width:0}
+.remind .bell{font-size:12px;letter-spacing:.06em;color:var(--rc);font-weight:700;flex:none}
+.remind .tx{flex:1;min-width:0;overflow-wrap:anywhere}
+.remind .when{flex:none;font-weight:700;color:var(--rc)}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
 footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 @media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
@@ -201,6 +206,8 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
       <button role="tab" id="tab-mine" aria-selected="false" data-tab="mine">我的日期</button>
     </div>
   </nav>
+
+  <div class="remind" id="remindBar" hidden></div>
 
   <!-- 假日 -->
   <section class="panel" id="p-hol">
@@ -283,8 +290,14 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
         <div class="field offonly"><label for="fUnit">單位</label><select id="fUnit"><option value="d">天</option><option value="w">工作天</option><option value="wk">週</option><option value="m">個月</option><option value="y">年</option></select></div>
       </div>
       <div class="field"><label>月曆上的顏色</label><div class="swatches" id="fColors"><label title="藍"><input type="radio" name="fColor" value="c1" checked aria-label="藍"><span style="background:var(--c1)"></span></label><label title="紫"><input type="radio" name="fColor" value="c2" aria-label="紫"><span style="background:var(--c2)"></span></label><label title="橘"><input type="radio" name="fColor" value="c3" aria-label="橘"><span style="background:var(--c3)"></span></label><label title="桃紅"><input type="radio" name="fColor" value="c4" aria-label="桃紅"><span style="background:var(--c4)"></span></label><label title="青"><input type="radio" name="fColor" value="c5" aria-label="青"><span style="background:var(--c5)"></span></label><label title="橄欖綠"><input type="radio" name="fColor" value="c6" aria-label="橄欖綠"><span style="background:var(--c6)"></span></label></div></div>
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <label class="check"><input type="checkbox" id="fYearly" style="width:auto;min-height:0"> 每年重複（生日、紀念日）</label>
+      <div class="row">
+        <div class="field"><label for="fRepeat">重複</label>
+          <select id="fRepeat"><option value="none">不重複</option><option value="year">每年同一天（生日、週年）</option><option value="month">每月同一天（月紀念日）</option><option value="days">每隔幾天（例如每 100 天）</option></select></div>
+        <div class="field sm" id="fEveryWrap" hidden><label for="fEvery">每隔幾天</label><input type="number" id="fEvery" value="100" min="1" inputmode="numeric"></div>
+        <div class="field"><label for="fRemind">提醒</label>
+          <select id="fRemind"><option value="">不提醒</option><option value="0">當天</option><option value="1">前 1 天</option><option value="3">前 3 天</option><option value="7">前 7 天</option><option value="14">前 14 天</option><option value="30">前 30 天</option></select></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;align-items:center">
         <div class="row">
           <button type="button" class="btn ghost" id="fCancel" hidden>取消編輯</button>
           <button type="submit" class="btn" id="fSubmit">新增</button>
@@ -295,7 +308,7 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
         <button type="button" data-q="bday">生日（每年）</button>
         <button type="button" data-q="contract">合約到期（＋90 天）</button>
         <button type="button" data-q="pay">付款期限（＋30 工作天）</button>
-        <button type="button" data-q="anni">交往紀念日（已過幾天）</button>
+        <button type="button" data-q="anni">交往紀念日（每月）</button><button type="button" data-q="hundred">在一起每 100 天</button>
       </div>
       <div class="warn" id="fErr" hidden></div>
     </form>
@@ -491,12 +504,16 @@ function mineByDay(y,m){ // 這個月每天有哪些我的日期
   if(!show) return map;
   for(const it of items){
     let t; try{ t=baseTarget(it); }catch(e){ continue; }
-    let k=null;
-    if(it.yearly){
-      if(y<t.getUTCFullYear() || t.getUTCMonth()!==m) continue;
-      const last=new Date(Date.UTC(y,m+1,0)).getUTCDate(); k=key(mk(y,m,Math.min(t.getUTCDate(),last)));
-    } else if(t.getUTCFullYear()===y && t.getUTCMonth()===m) k=key(t);
-    if(k) (map[k]=map[k]||[]).push(it);
+    const put=k=>(map[k]=map[k]||[]).push(it), r=rep(it);
+    if(r==="year"){
+      if(y>=t.getUTCFullYear() && t.getUTCMonth()===m) put(key(clampDay(y,m,t.getUTCDate())));
+    } else if(r==="month"){
+      if(y*12+m >= t.getUTCFullYear()*12+t.getUTCMonth()) put(key(clampDay(y,m,t.getUTCDate())));
+    } else if(r==="days"){
+      const N=everyOf(it), ms=mk(y,m,1), me=mk(y,m+1,0);
+      let d = t>=ms ? t : add(t, Math.ceil(diff(t,ms)/N)*N);
+      for(; d<=me; d=add(d,N)) put(key(d));
+    } else if(t.getUTCFullYear()===y && t.getUTCMonth()===m) put(key(t));
   }
   return map;
 }
@@ -568,39 +585,55 @@ function lsLoad(){ try{ return JSON.parse(localStorage.getItem(LS)||"[]"); }catc
 function lsSave(){ try{ localStorage.setItem(LS,JSON.stringify(items)); }catch(e){} }
 items = lsLoad();
 
-function target(it){
-  let t=parse(it.base);
-  if(it.mode==="offset") t=shift(t,(+it.sign||1)*(+it.n||0),it.unit);
-  let year=null;
-  if(it.yearly){
-    const m=t.getUTCMonth(), d=t.getUTCDate(), by=t.getUTCFullYear();
-    let y=TODAY.getUTCFullYear(), c=addMonths(mk(y,m,1),0); c=mk(y,m,Math.min(d,new Date(Date.UTC(y,m+1,0)).getUTCDate()));
-    if(c<TODAY){ y++; c=mk(y,m,Math.min(d,new Date(Date.UTC(y,m+1,0)).getUTCDate())); }
-    year=y-by; t=c;
+function rep(it){ return ["year","month","days"].includes(it.repeat) ? it.repeat : (it.yearly ? "year" : "none"); }
+const everyOf = it => Math.max(1, parseInt(it.every,10) || 100);
+const clampDay = (y,m,d) => { const yy=y+Math.floor(m/12), mm=((m%12)+12)%12; return mk(yy,mm,Math.min(d,new Date(Date.UTC(yy,mm+1,0)).getUTCDate())); };
+const hasRemind = it => it.remind!==undefined && it.remind!==null && it.remind!=="" && !isNaN(+it.remind);
+function target(it){ // 下一次（今天或之後）的日期
+  const b=baseTarget(it), r=rep(it); let t=b, label="";
+  if(r==="year"){
+    let y=Math.max(TODAY.getUTCFullYear(), b.getUTCFullYear()), c=clampDay(y,b.getUTCMonth(),b.getUTCDate());
+    if(c<TODAY){ y++; c=clampDay(y,b.getUTCMonth(),b.getUTCDate()); }
+    t=c; const k=y-b.getUTCFullYear(); label=`每年${k>0?`・第 ${k} 年`:""}`;
+  } else if(r==="month"){
+    let mi = b>TODAY ? b.getUTCFullYear()*12+b.getUTCMonth() : TODAY.getUTCFullYear()*12+TODAY.getUTCMonth();
+    let c=clampDay(0,mi,b.getUTCDate()); if(c<TODAY){ mi++; c=clampDay(0,mi,b.getUTCDate()); }
+    t=c; const k=mi-(b.getUTCFullYear()*12+b.getUTCMonth()); label=`每月${k>0?`・滿 ${k} 個月`:""}`;
+  } else if(r==="days"){
+    const N=everyOf(it), k = b>=TODAY ? 0 : Math.ceil(diff(b,TODAY)/N);
+    t=add(b,k*N); label=`每 ${N} 天${k>0?`・滿 ${k*N} 天`:""}`;
   }
-  return {t,year};
+  return {t,label};
+}
+function renderReminders(){
+  const due=items.filter(hasRemind).map(it=>{ const {t}=target(it); return {it,t,n:diff(TODAY,t)}; })
+    .filter(o=>o.n>=0 && o.n<=+o.it.remind).sort((a,b)=>a.n-b.n);
+  const bar=$("remindBar"); bar.hidden=!due.length;
+  bar.innerHTML=due.map(({it,t,n})=>`<button type="button" data-goto="mine" style="--rc:var(--${colorOf(it)})"><span class="bell">提醒</span><span class="tx">${esc(it.name)}<span style="color:var(--muted);font-size:13px">・${fmt(t)}</span></span><span class="when">${n===0?"就是今天":`${n} 天後`}</span></button>`).join("");
 }
 function renderItems(){
-  renderCal(); if(calSel) selectDay(calSel);
+  renderCal(); if(calSel) selectDay(calSel); renderReminders();
   const box=$("items");
   if(!items.length){ box.innerHTML=`<div class="empty">還沒有自訂日期。在上方輸入名稱和日期，或點一個快速範本開始。</div>`; return; }
   const list=items.map(it=>({it,...target(it)})).map(o=>({...o,n:diff(TODAY,o.t)}))
     .sort((a,b)=>(a.n<0)-(b.n<0) || (a.n>=0? a.n-b.n : b.n-a.n));
-  box.innerHTML=list.map(({it,t,n,year})=>{
+  box.innerHTML=list.map(({it,t,n,label})=>{
     const how = it.mode==="offset" ? `${it.base.replaceAll("-","/")} ${+it.sign<0?"－":"＋"}${it.n} ${unitName[it.unit]}` : "";
     const hol=HOL[key(t)];
     const wdLeft = n>0 ? workdaysBetween(add(TODAY,1),t) : null;
     const on=shSel.has(it.id);
     return `<div class="item${shMode?" pick":""}${shMode&&on?" on":""}"${shMode?` data-pick="${it.id}" role="checkbox" aria-checked="${on}" tabindex="0"`:""}>
-      <div class="nm">${shMode?`<span class="tick">${on?"✓":""}</span>`:""}<span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${it.yearly?` <span class="chip acc">每年${year>0?`・第 ${year} 年`:""}</span>`:""}</div>
+      <div class="nm">${shMode?`<span class="tick">${on?"✓":""}</span>`:""}<span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${label?` <span class="chip acc">${label}</span>`:""}${hasRemind(it)?` <span class="chip mute">${+it.remind===0?"當天提醒":`前 ${+it.remind} 天提醒`}</span>`:""}</div>
       <div class="meta">${fmt(t)}${hol?`・<span style="color:var(--red)">${esc(hol.n)}</span>`:""}${how?`<br>${how}`:""}${wdLeft!==null?`<br>還有 ${wdLeft} 個工作天${spansUncovered(TODAY,t)?"（超出假日資料部分只排除週末）":""}`:""}</div>
       <div class="cnt"><div class="v${n>=0&&n<=7?" soon":""}">${n===0?"今天":Math.abs(n)}</div><div class="u">${n===0?"":n>0?"天後":"天前"}</div></div>
-      <div class="acts"${shMode?" hidden":""}><button data-ed="${it.id}">編輯</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
+      <div class="acts"${shMode?" hidden":""}><button data-ed="${it.id}">編輯</button><button data-ics="${it.id}">加到手機行事曆</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
     </div>`;}).join("");
 }
 
 function toggleMode(){ const off=$("fMode").value==="offset"; document.querySelectorAll(".offonly").forEach(e=>e.hidden=!off); }
 $("fMode").addEventListener("change",toggleMode); toggleMode();
+function toggleRepeat(){ $("fEveryWrap").hidden = $("fRepeat").value!=="days"; }
+$("fRepeat").addEventListener("change",toggleRepeat);
 let multi=false, picks=new Set(), pkY=TODAY.getUTCFullYear(), pkM=TODAY.getUTCMonth();
 function setMulti(on){
   multi=on; $("multiToggle").setAttribute("aria-pressed",on);
@@ -635,19 +668,20 @@ $("pkPrev").onclick=()=>{ pkM--; if(pkM<0){pkM=11;pkY--;} renderPicker(); };
 $("pkNext").onclick=()=>{ pkM++; if(pkM>11){pkM=0;pkY++;} renderPicker(); };
 $("pkToday").onclick=()=>{ pkY=TODAY.getUTCFullYear(); pkM=TODAY.getUTCMonth(); renderPicker(); };
 
-function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; toggleMode(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
+function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; $("fEvery").value=100; toggleMode(); toggleRepeat(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
 resetForm();
 $("fCancel").onclick=resetForm;
 
 const QUICK={
-  bday:{name:"生日",mode:"date",yearly:true},
+  bday:{name:"生日",mode:"date",repeat:"year",remind:"3"},
   contract:{name:"合約到期",mode:"offset",sign:1,n:90,unit:"d"},
   pay:{name:"付款期限",mode:"offset",sign:1,n:30,unit:"w"},
-  anni:{name:"交往紀念日",mode:"date"}
+  anni:{name:"交往紀念日",mode:"date",repeat:"month",remind:"1"},
+  hundred:{name:"在一起",mode:"date",repeat:"days",every:100,remind:"3"}
 };
 $("quick").addEventListener("click",e=>{
   const b=e.target.closest("[data-q]"); if(!b) return; const q=QUICK[b.dataset.q];
-  $("fName").value=q.name; $("fMode").value=q.mode; $("fYearly").checked=!!q.yearly;
+  $("fName").value=q.name; $("fMode").value=q.mode; $("fRepeat").value=q.repeat||"none"; $("fRemind").value=q.remind||""; if(q.every) $("fEvery").value=q.every; toggleRepeat();
   if(q.mode==="offset"){ $("fSign").value=q.sign; $("fN").value=q.n; $("fUnit").value=q.unit; }
   toggleMode(); $("fName").focus(); $("fName").select();
 });
@@ -664,7 +698,7 @@ $("itemForm").addEventListener("submit",async e=>{
   const bases = multi ? [...picks].sort() : [$("fBase").value].filter(Boolean);
   if(!name){ $("fErr").textContent="請填寫名稱。"; $("fErr").hidden=false; return; }
   if(!bases.length){ $("fErr").textContent= multi?"請在月曆上至少選一天。":"請選擇日期。"; $("fErr").hidden=false; return; }
-  const common={ name, mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value, yearly:$("fYearly").checked, color:(document.querySelector('input[name="fColor"]:checked')||{}).value||"c1", updated:Date.now() };
+  const common={ name, mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value, repeat:$("fRepeat").value, every:Math.max(1,parseInt($("fEvery").value,10)||100), remind:$("fRemind").value, color:(document.querySelector('input[name="fColor"]:checked')||{}).value||"c1", updated:Date.now() };
   try{
     for(const base of bases){
       await saveItem({ id: (editing && bases.length===1) ? editing : ("i"+Date.now().toString(36)+Math.random().toString(36).slice(2,8)), base, ...common });
@@ -677,7 +711,7 @@ $("itemForm").addEventListener("submit",async e=>{
 $("items").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-ed]"), del=e.target.closest("[data-del]");
   if(ed){ const it=items.find(x=>x.id===ed.dataset.ed); if(!it) return; editing=it.id;
-    $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d"; $("fYearly").checked=!!it.yearly; { const r=document.querySelector(`input[name="fColor"][value="${colorOf(it)}"]`); if(r) r.checked=true; }
+    $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d"; $("fRepeat").value=rep(it); $("fEvery").value=everyOf(it); $("fRemind").value=hasRemind(it)?String(+it.remind):""; toggleRepeat(); { const r=document.querySelector(`input[name="fColor"][value="${colorOf(it)}"]`); if(r) r.checked=true; }
     if(multi) setMulti(false); $("multiRow").hidden=true; toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false; $("itemForm").scrollIntoView({behavior:"smooth",block:"start"}); $("fName").focus(); }
   if(del){ const id=del.dataset.del;
     if(confirmDel===id){ confirmDel=null; try{ await removeItem(id); }catch(err){ renderItems(); } }
@@ -685,11 +719,32 @@ $("items").addEventListener("click",async e=>{
 });
 
 // 備份／還原（把資料搬到另一台裝置）
+function saveFile(name,text,type){
+  const blob=new Blob([text],{type}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+const icsEsc=s=>String(s).replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replace(/\n/g,"\\n");
+function icsOf(list){
+  const ymd=d=>key(d).replace(/-/g,""), stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//RedLetter//TW","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
+  for(const it of list){
+    const r=rep(it), s = r==="none" ? baseTarget(it) : baseTarget(it);
+    L.push("BEGIN:VEVENT",`UID:${it.id}@redletter`,`DTSTAMP:${stamp}`,`DTSTART;VALUE=DATE:${ymd(s)}`,`DTEND;VALUE=DATE:${ymd(add(s,1))}`,`SUMMARY:${icsEsc(it.name)}`,"TRANSP:TRANSPARENT");
+    if(r==="year") L.push("RRULE:FREQ=YEARLY");
+    if(r==="month") L.push("RRULE:FREQ=MONTHLY");
+    if(r==="days") L.push(`RRULE:FREQ=DAILY;INTERVAL=${everyOf(it)}`);
+    if(hasRemind(it)){ const R=+it.remind; L.push("BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsEsc(it.name)}`, R===0?"TRIGGER:PT9H":`TRIGGER:-PT${R*24-9}H`,"END:VALARM"); }
+    L.push("END:VEVENT");
+  }
+  L.push("END:VCALENDAR"); return L.join("\r\n")+"\r\n";
+}
+$("items").addEventListener("click",e=>{ const b=e.target.closest("[data-ics]"); if(!b) return; const it=items.find(x=>x.id===b.dataset.ics); if(!it) return;
+  saveFile(`${it.name.replace(/[\\/:*?"<>|]/g,"")||"日期"}.ics`, icsOf([it]), "text/calendar");
+  bkMsg("已產生行事曆檔，打開它並選「加入行事曆」，手機就會在設定的時間提醒你。",true); });
+document.addEventListener("click",e=>{ const b=e.target.closest("[data-goto]"); if(b) show(b.dataset.goto); });
 function bkMsg(t,ok){ const m=$("bkMsg"); m.textContent=t; m.style.color=ok?"var(--accent)":"var(--red)"; m.hidden=false; setTimeout(()=>m.hidden=true,5000); }
 $("bkOut").onclick=()=>{
-  const blob=new Blob([JSON.stringify({app:"redletter",v:1,items},null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`紅字日曆備份-${key(TODAY)}.json`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  saveFile(`紅字日曆備份-${key(TODAY)}.json`, JSON.stringify({app:"redletter",v:1,items},null,2), "application/json");
   bkMsg(`已匯出 ${items.length} 筆日期。`,true);
 };
 $("bkIn").onclick=()=>$("bkFile").click();
@@ -706,7 +761,7 @@ $("bkFile").onchange=async e=>{
 
 // ---------- 分享給朋友 ----------
 let shMode=false, shSel=new Set();
-const FIELDS=["name","base","mode","sign","n","unit","yearly","color"];
+const FIELDS=["name","base","mode","sign","n","unit","yearly","color","repeat","every","remind"];
 function enc(arr){ const json=JSON.stringify({v:1,i:arr.map(it=>FIELDS.map(f=>it[f]??null))});
   const bytes=new TextEncoder().encode(json); let bin=""; for(const b of bytes) bin+=String.fromCharCode(b);
   return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
@@ -714,7 +769,7 @@ function dec(code){ let b=code.replace(/-/g,"+").replace(/_/g,"/"); while(b.leng
   const bin=atob(b), bytes=Uint8Array.from(bin,c=>c.charCodeAt(0)); const o=JSON.parse(new TextDecoder().decode(bytes));
   return (o.i||[]).map(r=>{ const it={}; FIELDS.forEach((f,i)=>{ if(r[i]!==null&&r[i]!==undefined) it[f]=r[i]; }); return it; })
     .filter(it=>typeof it.name==="string"&&it.name&&/^\d{4}-\d{2}-\d{2}$/.test(it.base||""))
-    .map(it=>({...it,name:it.name.slice(0,40),mode:it.mode==="offset"?"offset":"date",sign:+it.sign<0?-1:1,n:Math.max(0,parseInt(it.n,10)||0),unit:unitName[it.unit]?it.unit:"d",yearly:!!it.yearly,color:COLORS.includes(it.color)?it.color:"c1"})); }
+    .map(it=>({...it,name:it.name.slice(0,40),mode:it.mode==="offset"?"offset":"date",sign:+it.sign<0?-1:1,n:Math.max(0,parseInt(it.n,10)||0),unit:unitName[it.unit]?it.unit:"d",yearly:!!it.yearly,color:COLORS.includes(it.color)?it.color:"c1",repeat:rep(it),every:everyOf(it),remind:hasRemind(it)?String(+it.remind):""})); }
 function shareCount(){ $("shCount").textContent = shSel.size?`已選 ${shSel.size} 筆`:"點下面的日期來勾選"; $("shMake").disabled=!shSel.size; $("shMake").style.opacity=shSel.size?1:.5; }
 function shOpen(){ if(!items.length){ bkMsg("還沒有日期可以分享，先新增幾個吧。",false); return; }
   imClose(); shMode=true; shSel=new Set(); $("shPanel").hidden=false; $("shPick").hidden=false; $("shDone").hidden=true; $("itemForm").hidden=true; shareCount(); renderItems(); $("shPanel").scrollIntoView({behavior:"smooth",block:"start"}); }
@@ -746,7 +801,7 @@ function imShow(list){
   $("imPanel").hidden=false; $("imPaste").hidden=true; $("imList").hidden=false; $("imMsg").hidden=true;
   $("imTitle").textContent=`朋友分享了 ${list.length} 個日期給你`;
   $("imRows").innerHTML=list.map((it,i)=>{ const dup=have.has(sameKey(it)); const t=target(it).t;
-    return `<label class="${dup?"dup":""}"><input type="checkbox" data-im="${i}" ${dup?"disabled":"checked"}><span class="cdot" style="background:var(--${it.color})"></span><span style="min-width:0"><b>${esc(it.name)}</b>${it.yearly?` <span class="chip acc">每年</span>`:""}<br><span class="d">${fmt(t)}${dup?"・你已經有了":""}</span></span></label>`; }).join("");
+    return `<label class="${dup?"dup":""}"><input type="checkbox" data-im="${i}" ${dup?"disabled":"checked"}><span class="cdot" style="background:var(--${it.color})"></span><span style="min-width:0"><b>${esc(it.name)}</b>${rep(it)!=="none"?` <span class="chip acc">${target(it).label}</span>`:""}${false?` <span class="chip acc">每年</span>`:""}<br><span class="d">${fmt(t)}${dup?"・你已經有了":""}</span></span></label>`; }).join("");
 }
 function imFromText(txt){ const m=String(txt).match(/share=([A-Za-z0-9_-]+)/); if(!m) throw 0; const list=dec(m[1]); if(!list.length) throw 0; return list; }
 $("imStart").onclick=()=>{ if(shMode) shClose(); $("imPanel").hidden=false; $("imPaste").hidden=false; $("imList").hidden=true; $("imMsg").hidden=true; $("imText").value=""; $("imText").focus(); };
