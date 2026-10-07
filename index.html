@@ -209,6 +209,18 @@ button.infoitem .ed{color:var(--accent);font-size:12px}
 .vbot input{background:#161B19;color:#F2F4F3;border-color:#3A4240}
 .vbot .btn.ghost{color:#F2F4F3;border-color:#3A4240}
 .vbot .btn.ghost.confirm{border-color:#FF6F62;color:#FF6F62}
+.ymbtn{border:0;background:none;color:var(--ink);font:inherit;cursor:pointer;padding:4px 10px;border-radius:8px;display:inline-flex;align-items:center;gap:6px}
+.ymbtn::after{content:"";width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid var(--muted)}
+.ymbtn[aria-expanded="true"]{background:var(--accent-soft);color:var(--accent)}
+.ympanel{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:var(--surface)}
+.ymhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+.ymhead b{font-size:16px;text-align:center}
+.ymhead small{font-weight:400;color:var(--muted);font-size:12px;margin-left:4px}
+.ymgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ymm{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:10px 0;cursor:pointer;font-size:15px}
+.ymm.now{border-color:var(--accent);color:var(--accent);font-weight:700}
+.ymm.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.ymfoot{display:flex;justify-content:flex-end;margin-top:8px}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
 footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 @media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
@@ -244,9 +256,10 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
     <div class="cal">
       <div class="calhead">
         <button class="iconbtn" id="calPrev" aria-label="上個月">‹</button>
-        <h2 id="calTitle"></h2>
+        <h2><button type="button" class="ymbtn" id="calTitle" aria-expanded="false" aria-controls="calYM"></button></h2>
         <div class="navgrp"><button class="todaybtn" id="calToday">今天</button><button class="iconbtn" id="calNext" aria-label="下個月">›</button></div>
       </div>
+      <div class="ympanel" id="calYM" hidden></div>
       <div class="grid7" id="calGrid"></div>
       <div class="calinfo" id="calInfo">點一下看詳細資訊；快速點兩下可以新增或編輯這天的日期</div>
       <div class="legend"><span><span class="sw" style="background:var(--red-soft);box-shadow:inset 0 0 0 1px var(--red)"></span>國定假日</span><span><span class="sw" style="background:var(--c1)"></span>我的日期（依你設定的顏色）</span><span><span class="sw" style="background:var(--line);box-shadow:inset 0 0 0 1px var(--muted)"></span>右上小圖＝這天有照片</span>
@@ -305,9 +318,10 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
       <div class="picker" id="picker" hidden>
         <div class="calhead">
           <button type="button" class="iconbtn" id="pkPrev" aria-label="上個月">‹</button>
-          <h2 id="pkTitle"></h2>
+          <h2><button type="button" class="ymbtn" id="pkTitle" aria-expanded="false" aria-controls="pkYM"></button></h2>
           <div class="navgrp"><button type="button" class="todaybtn" id="pkToday">今天</button><button type="button" class="iconbtn" id="pkNext" aria-label="下個月">›</button></div>
         </div>
+        <div class="ympanel" id="pkYM" hidden></div>
         <div class="grid7" id="pkGrid"></div>
         <div class="pkchips" id="pkChips"></div>
       </div>
@@ -617,9 +631,26 @@ $("calInfo").addEventListener("click",e=>{
 });
 $("showMine").addEventListener("change",()=>{ try{ localStorage.setItem("redletter-showmine",$("showMine").checked?"1":"0"); }catch(e){} renderCal(); if(calSel) selectDay(calSel); });
 try{ if(localStorage.getItem("redletter-showmine")==="0") $("showMine").checked=false; }catch(e){}
-$("calToday").onclick=()=>{ calY=TODAY.getUTCFullYear(); calM=TODAY.getUTCMonth(); selectDay(key(TODAY)); };
-$("calPrev").onclick=()=>{calM--; if(calM<0){calM=11;calY--;} renderCal();};
-$("calNext").onclick=()=>{calM++; if(calM>11){calM=0;calY++;} renderCal();};
+function ymPanel(panel, btn, get, set){ // 點年月標題：快速選年份和月份
+  let y;
+  const close=()=>{ panel.hidden=true; btn.setAttribute("aria-expanded","false"); };
+  function draw(){ const cur=get(), ty=TODAY.getUTCFullYear(), tm=TODAY.getUTCMonth();
+    panel.innerHTML=`<div class="ymhead"><button type="button" class="iconbtn" data-yy="-1" aria-label="前一年">‹</button><b>${y} 年<small>民國 ${y-1911} 年</small></b><button type="button" class="iconbtn" data-yy="1" aria-label="下一年">›</button></div>
+      <div class="ymgrid">${Array.from({length:12},(_,i)=>`<button type="button" class="ymm${i===cur.m&&y===cur.y?" on":""}${y===ty&&i===tm?" now":""}" data-mm="${i}">${i+1} 月</button>`).join("")}</div>
+      <div class="ymfoot"><button type="button" class="mini" data-ytoday="1">回到本月</button></div>`; }
+  panel.addEventListener("click",e=>{
+    const yy=e.target.closest("[data-yy]"), mm=e.target.closest("[data-mm]"), td=e.target.closest("[data-ytoday]");
+    if(yy){ y+=+yy.dataset.yy; draw(); }
+    if(mm){ set(y,+mm.dataset.mm); close(); }
+    if(td){ set(TODAY.getUTCFullYear(),TODAY.getUTCMonth()); close(); }
+  });
+  btn.addEventListener("click",()=>{ if(panel.hidden){ y=get().y; draw(); panel.hidden=false; btn.setAttribute("aria-expanded","true"); } else close(); });
+  return {close};
+}
+const calYM=ymPanel($("calYM"),$("calTitle"),()=>({y:calY,m:calM}),(y,m)=>{ calY=y; calM=m; renderCal(); });
+$("calToday").onclick=()=>{ calYM.close();  calY=TODAY.getUTCFullYear(); calM=TODAY.getUTCMonth(); selectDay(key(TODAY)); };
+$("calPrev").onclick=()=>{calYM.close(); calM--; if(calM<0){calM=11;calY--;} renderCal();};
+$("calNext").onclick=()=>{calYM.close(); calM++; if(calM>11){calM=0;calY++;} renderCal();};
 
 // ---------- 計算 ----------
 $("aStart").value=key(TODAY); $("bFrom").value=key(TODAY); $("bTo").value=key(mk(TODAY.getUTCFullYear(),11,31));
@@ -776,9 +807,10 @@ function renderPicker(){
 $("multiToggle").onclick=()=>setMulti(!multi);
 $("pkGrid").addEventListener("click",e=>{ const b=e.target.closest("[data-pk]"); if(!b) return; const k=b.dataset.pk; picks.has(k)?picks.delete(k):picks.add(k); renderPicker(); updSubmit(); });
 $("pkChips").addEventListener("click",e=>{ const r=e.target.closest("[data-rm]"), c=e.target.closest("[data-clear]"); if(r) picks.delete(r.dataset.rm); if(c) picks.clear(); if(r||c){ renderPicker(); updSubmit(); } });
-$("pkPrev").onclick=()=>{ pkM--; if(pkM<0){pkM=11;pkY--;} renderPicker(); };
-$("pkNext").onclick=()=>{ pkM++; if(pkM>11){pkM=0;pkY++;} renderPicker(); };
-$("pkToday").onclick=()=>{ pkY=TODAY.getUTCFullYear(); pkM=TODAY.getUTCMonth(); renderPicker(); };
+const pkYM=ymPanel($("pkYM"),$("pkTitle"),()=>({y:pkY,m:pkM}),(y,m)=>{ pkY=y; pkM=m; renderPicker(); });
+$("pkPrev").onclick=()=>{ pkYM.close(); pkM--; if(pkM<0){pkM=11;pkY--;} renderPicker(); };
+$("pkNext").onclick=()=>{ pkYM.close(); pkM++; if(pkM>11){pkM=0;pkY++;} renderPicker(); };
+$("pkToday").onclick=()=>{ pkYM.close(); pkY=TODAY.getUTCFullYear(); pkM=TODAY.getUTCMonth(); renderPicker(); };
 
 function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; formRules=[]; renderRules(); $("fRuleN").value=30; toggleRuleN(); toggleMode(); $("fErr").style.color=""; $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
 resetForm();
