@@ -186,6 +186,29 @@ input,select{width:100%;border:1px solid var(--line);background:var(--bg);color:
 .remind .bell{font-size:12px;letter-spacing:.06em;color:var(--rc);font-weight:700;flex:none}
 .remind .tx{flex:1;min-width:0;overflow-wrap:anywhere}
 .remind .when{flex:none;font-weight:700;color:var(--rc)}
+.day{position:relative}
+.day .ph{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:4px;background-size:cover;background-position:center;box-shadow:0 0 0 1.5px var(--surface)}
+.ci-items{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+button.infoitem{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;cursor:pointer;color:var(--ink);font-size:13px;margin:0}
+button.infoitem .lb{color:var(--muted)}
+button.infoitem .ed{color:var(--accent);font-size:12px}
+.phstrip{display:flex;gap:6px;overflow-x:auto;margin-top:8px}
+.pth{flex:none;width:56px;height:56px;border-radius:8px;border:0;background-size:cover;background-position:center;cursor:pointer;background-color:var(--line)}
+.ci-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.ci-acts .mini{margin-left:0;line-height:1.9;padding:0 10px}
+.rules{display:flex;flex-wrap:wrap;gap:6px;min-height:32px;align-items:center}
+.rchip{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 12px;cursor:pointer;font-size:14px}
+.rules .hint{font-size:13px;color:var(--muted)}
+.viewer{position:fixed;inset:0;z-index:50;background:#0B0E0D;color:#F2F4F3;display:flex;flex-direction:column;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 14px)}
+.vtop{display:flex;justify-content:space-between;align-items:center;font-weight:700;gap:10px}
+.vtop .iconbtn,.vnav{color:#F2F4F3;border:1px solid #3A4240;background:none}
+.vimg{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:8px}
+.vimg img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;min-width:0}
+.vnav{flex:none;border-radius:999px;width:38px;height:38px;cursor:pointer;font-size:18px}
+.vbot{display:flex;flex-direction:column;gap:8px}
+.vbot input{background:#161B19;color:#F2F4F3;border-color:#3A4240}
+.vbot .btn.ghost{color:#F2F4F3;border-color:#3A4240}
+.vbot .btn.ghost.confirm{border-color:#FF6F62;color:#FF6F62}
 .empty{border:1px dashed var(--line);border-radius:var(--r);padding:20px;text-align:center;color:var(--muted)}
 footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 @media (max-width:520px){.hero .num{font-size:52px}.hcard{grid-template-columns:54px 1fr auto;gap:10px}}
@@ -193,6 +216,12 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 </style>
 </head>
 <body>
+<input type="file" id="phFile" accept="image/*" multiple hidden>
+<div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="照片">
+  <div class="vtop"><span id="vDate"></span><button type="button" class="iconbtn" id="vClose" aria-label="關閉">×</button></div>
+  <div class="vimg"><button type="button" class="vnav" id="vPrev" aria-label="上一張">‹</button><img id="vImg" alt=""><button type="button" class="vnav" id="vNext" aria-label="下一張">›</button></div>
+  <div class="vbot"><input id="vCap" placeholder="寫一句話記錄這天" maxlength="120" aria-label="照片說明"><div class="row"><button type="button" class="btn ghost" id="vDel">刪除照片</button></div></div>
+</div>
 <div class="wrap">
   <header class="top">
     <h1>紅字<span>日曆</span></h1>
@@ -219,8 +248,8 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
         <div class="navgrp"><button class="todaybtn" id="calToday">今天</button><button class="iconbtn" id="calNext" aria-label="下個月">›</button></div>
       </div>
       <div class="grid7" id="calGrid"></div>
-      <div class="calinfo" id="calInfo">點任一天看詳細資訊</div>
-      <div class="legend"><span><span class="sw" style="background:var(--red-soft);box-shadow:inset 0 0 0 1px var(--red)"></span>國定假日</span><span><span class="sw" style="background:var(--c1)"></span>我的日期（依你設定的顏色）</span>
+      <div class="calinfo" id="calInfo">點一下看詳細資訊；快速點兩下可以新增或編輯這天的日期</div>
+      <div class="legend"><span><span class="sw" style="background:var(--red-soft);box-shadow:inset 0 0 0 1px var(--red)"></span>國定假日</span><span><span class="sw" style="background:var(--c1)"></span>我的日期（依你設定的顏色）</span><span><span class="sw" style="background:var(--line);box-shadow:inset 0 0 0 1px var(--muted)"></span>右上小圖＝這天有照片</span>
         <label class="check" style="margin-left:auto"><input type="checkbox" id="showMine" checked style="width:auto;min-height:0"> 在月曆顯示我的日期</label></div>
     </div>
     <div class="bar">
@@ -290,11 +319,17 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
         <div class="field offonly"><label for="fUnit">單位</label><select id="fUnit"><option value="d">天</option><option value="w">工作天</option><option value="wk">週</option><option value="m">個月</option><option value="y">年</option></select></div>
       </div>
       <div class="field"><label>月曆上的顏色</label><div class="swatches" id="fColors"><label title="藍"><input type="radio" name="fColor" value="c1" checked aria-label="藍"><span style="background:var(--c1)"></span></label><label title="紫"><input type="radio" name="fColor" value="c2" aria-label="紫"><span style="background:var(--c2)"></span></label><label title="橘"><input type="radio" name="fColor" value="c3" aria-label="橘"><span style="background:var(--c3)"></span></label><label title="桃紅"><input type="radio" name="fColor" value="c4" aria-label="桃紅"><span style="background:var(--c4)"></span></label><label title="青"><input type="radio" name="fColor" value="c5" aria-label="青"><span style="background:var(--c5)"></span></label><label title="橄欖綠"><input type="radio" name="fColor" value="c6" aria-label="橄欖綠"><span style="background:var(--c6)"></span></label></div></div>
+      <div class="field"><label>紀念規則（可以加好幾個，例如每 30 天＋滿 100 天）</label>
+        <div class="rules" id="fRules"></div>
+        <div class="row" style="margin-top:4px">
+          <div class="field" style="flex:2 1 170px"><label for="fRuleType">新增規則</label>
+            <select id="fRuleType"><option value="every">每隔幾天（重複）</option><option value="at">滿幾天（一次）</option><option value="month">每月同一天</option><option value="year">每年同一天</option></select></div>
+          <div class="field sm" id="fRuleNWrap"><label for="fRuleN">天數</label><input type="number" id="fRuleN" value="30" min="1" inputmode="numeric"></div>
+          <button type="button" class="btn ghost" id="fRuleAdd">＋ 加入</button>
+        </div>
+      </div>
       <div class="row">
-        <div class="field"><label for="fRepeat">重複</label>
-          <select id="fRepeat"><option value="none">不重複</option><option value="year">每年同一天（生日、週年）</option><option value="month">每月同一天（月紀念日）</option><option value="days">每隔幾天（例如每 100 天）</option></select></div>
-        <div class="field sm" id="fEveryWrap" hidden><label for="fEvery">每隔幾天</label><input type="number" id="fEvery" value="100" min="1" inputmode="numeric"></div>
-        <div class="field"><label for="fRemind">提醒</label>
+        <div class="field"><label for="fRemind">提醒（每個規則的日子都會提醒）</label>
           <select id="fRemind"><option value="">不提醒</option><option value="0">當天</option><option value="1">前 1 天</option><option value="3">前 3 天</option><option value="7">前 7 天</option><option value="14">前 14 天</option><option value="30">前 30 天</option></select></div>
       </div>
       <div class="row" style="justify-content:flex-end;align-items:center">
@@ -308,7 +343,7 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
         <button type="button" data-q="bday">生日（每年）</button>
         <button type="button" data-q="contract">合約到期（＋90 天）</button>
         <button type="button" data-q="pay">付款期限（＋30 工作天）</button>
-        <button type="button" data-q="anni">交往紀念日（每月）</button><button type="button" data-q="hundred">在一起每 100 天</button>
+        <button type="button" data-q="anni">交往紀念日（每月）</button><button type="button" data-q="hundred">紀念日（每 30 天＋滿 100 天）</button>
       </div>
       <div class="warn" id="fErr" hidden></div>
     </form>
@@ -499,21 +534,16 @@ let calY=TODAY.getUTCFullYear(), calM=TODAY.getUTCMonth(), calSel=null;
 const COLORS=["c1","c2","c3","c4","c5","c6"];
 const colorOf = it => COLORS.includes(it.color) ? it.color : "c1";
 function baseTarget(it){ let t=parse(it.base); if(it.mode==="offset") t=shift(t,(+it.sign||1)*(+it.n||0),it.unit); return t; }
-function mineByDay(y,m){ // 這個月每天有哪些我的日期
-  const map={}; let show=true; try{ show=$("showMine").checked; }catch(e){}
-  if(!show) return map;
+function mineByDay(y,m){ // 這個月每天有哪些我的日期 → {日期: [{it,label}]}
+  const map={}; let showM=true; try{ showM=$("showMine").checked; }catch(e){}
+  if(!showM) return map;
   for(const it of items){
-    let t; try{ t=baseTarget(it); }catch(e){ continue; }
-    const put=k=>(map[k]=map[k]||[]).push(it), r=rep(it);
-    if(r==="year"){
-      if(y>=t.getUTCFullYear() && t.getUTCMonth()===m) put(key(clampDay(y,m,t.getUTCDate())));
-    } else if(r==="month"){
-      if(y*12+m >= t.getUTCFullYear()*12+t.getUTCMonth()) put(key(clampDay(y,m,t.getUTCDate())));
-    } else if(r==="days"){
-      const N=everyOf(it), ms=mk(y,m,1), me=mk(y,m+1,0);
-      let d = t>=ms ? t : add(t, Math.ceil(diff(t,ms)/N)*N);
-      for(; d<=me; d=add(d,N)) put(key(d));
-    } else if(t.getUTCFullYear()===y && t.getUTCMonth()===m) put(key(t));
+    let b; try{ b=baseTarget(it); }catch(e){ continue; }
+    const mine={};
+    const put=(d,label)=>{ if(d.getUTCFullYear()!==y||d.getUTCMonth()!==m) return; const k=key(d); if(!(k in mine)||label) mine[k]=label||mine[k]||""; };
+    put(b,"");
+    for(const r of rulesOf(it)) ruleInMonth(b,r,y,m,put);
+    for(const k in mine) (map[k]=map[k]||[]).push({it,label:mine[k]});
   }
   return map;
 }
@@ -523,26 +553,68 @@ function renderCal(){
   let h=[...WD].map((w,i)=>`<div class="dow${i===0||i===6?" we":""}">${w}</div>`).join("");
   for(let i=0;i<first.getUTCDay();i++) h+=`<div class="day out"></div>`;
   for(let d=1; d<=days; d++){
-    const dt=mk(calY,calM,d), k=key(dt), hol=HOL[k], mine=MINE[k]||[];
+    const dt=mk(calY,calM,d), k=key(dt), hol=HOL[k], mine=MINE[k]||[], ph=(PH[k]||[])[0];
     const cls=["day"]; if(isWeekend(dt)) cls.push("we"); if(hol) cls.push("hol"); if(mine.length) cls.push("mine");
     if(k===key(TODAY)) cls.push("tod"); if(k===calSel) cls.push("sel");
+    const c0 = mine.length ? colorOf(mine[0].it) : "";
     const lbl = hol ? `<span class="h">${esc(hol.n.replace("補假","補"))}</span>`
-              : mine.length ? `<span class="h" style="color:var(--${colorOf(mine[0])})">${esc(mine[0].name)}</span>` : "";
-    const dots = mine.length ? `<span class="dots">${mine.slice(0,3).map(it=>`<i style="background:var(--${colorOf(it)})"></i>`).join("")}</span>` : "";
-    h+=`<button type="button" class="${cls.join(" ")}" data-k="${k}"${mine.length?` style="--mc:var(--${colorOf(mine[0])})"`:""} aria-label="${fmt(dt)}${hol?" "+hol.n:""}${mine.map(x=>" "+x.name).join("")}"><span class="n">${d}</span>${lbl}${dots}</button>`;
+              : mine.length ? `<span class="h" style="color:var(--${c0})">${esc(mine[0].it.name)}</span>` : "";
+    const dots = mine.length ? `<span class="dots">${mine.slice(0,3).map(x=>`<i style="background:var(--${colorOf(x.it)})"></i>`).join("")}</span>` : "";
+    h+=`<button type="button" class="${cls.join(" ")}" data-k="${k}"${mine.length?` style="--mc:var(--${c0})"`:""} aria-label="${fmt(dt)}${hol?" "+hol.n:""}${mine.map(x=>" "+x.it.name).join("")}${ph?" 有照片":""}"><span class="n">${d}</span>${lbl}${dots}${ph?`<span class="ph" style="background-image:url(${ph.turl})"></span>`:""}</button>`;
   }
   for(let i=first.getUTCDay()+days;i<42;i++) h+=`<div class="day out"></div>`;
   $("calGrid").innerHTML=h;
 }
-function selectDay(k){
-  calSel=k; renderCal();
+function markSel(k){ const g=$("calGrid"); g.querySelectorAll(".day.sel").forEach(x=>x.classList.remove("sel")); const b=g.querySelector(`[data-k="${k}"]`); if(b) b.classList.add("sel"); else renderCal(); }
+function selectDay(k,note,light){
+  calSel=k; if(light) markSel(k); else renderCal();
   const d=parse(calSel), hol=HOL[calSel], n=diff(TODAY,d);
   const tag = hol?`<b style="color:var(--red)">${esc(hol.n)}</b>`: isWeekend(d)?"週末":"上班日";
-  const mine=(mineByDay(d.getUTCFullYear(),d.getUTCMonth())[calSel]||[]);
+  const mine=(mineByDay(d.getUTCFullYear(),d.getUTCMonth())[calSel]||[]), photos=PH[calSel]||[];
   $("calInfo").innerHTML=`<b>${fmt(d)}</b>・${tag}・${rel(n)}${!covered(d.getUTCFullYear())?"・此年份尚無假日資料":""}`
-    + (mine.length?`<br>${mine.map(it=>`<span class="infoitem"><i style="background:var(--${colorOf(it)})"></i><b style="color:var(--${colorOf(it)})">${esc(it.name)}</b></span>`).join("")}`:"");
+    + (note?`<div style="color:var(--accent);font-size:13px">${esc(note)}</div>`:"")
+    + (mine.length?`<div class="ci-items">${mine.map(x=>`<button type="button" class="infoitem" data-qe="${x.it.id}"><i style="background:var(--${colorOf(x.it)})"></i><b style="color:var(--${colorOf(x.it)})">${esc(x.it.name)}</b>${x.label?`<span class="lb">${esc(x.label)}</span>`:""}<span class="ed">編輯</span></button>`).join("")}</div>`:"")
+    + (photos.length?`<div class="phstrip">${photos.map(p=>`<button type="button" class="pth" data-pv="${p.id}" style="background-image:url(${p.turl})" aria-label="查看照片${p.caption?"："+esc(p.caption):""}"></button>`).join("")}</div>`:"")
+    + `<div class="ci-acts"><button type="button" class="mini" data-qa="${calSel}">＋ 新增這天的日期</button><button type="button" class="mini" data-qp="${calSel}">＋ 加照片</button></div>`;
 }
-$("calGrid").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b) selectDay(b.dataset.k); });
+// 點兩下偵測：用觸控／滑鼠放開的時間判斷，手機和電腦都適用
+function makeDoubleTap(el, sel, onDouble){
+  let tap={k:null,t:0,x:0,y:0}, down=null, last=0;
+  el.addEventListener("pointerdown",e=>{ down={x:e.clientX,y:e.clientY}; },{passive:true});
+  el.addEventListener("pointerup",e=>{
+    const b=e.target.closest(sel); if(!b||!down) return;
+    if(Math.abs(e.clientX-down.x)>12||Math.abs(e.clientY-down.y)>12){ tap.k=null; return; } // 是滑動不是點
+    const k=b.dataset.k||b.dataset.pick||b.dataset.dbl, now=Date.now();
+    if(tap.k===k && now-tap.t<550 && Math.abs(e.clientX-tap.x)<40 && Math.abs(e.clientY-tap.y)<40){ tap.k=null; last=now; onDouble(k,e); return; }
+    tap={k,t:now,x:e.clientX,y:e.clientY};
+  },{passive:true});
+  el.addEventListener("dblclick",e=>{ const b=e.target.closest(sel); if(!b||Date.now()-last<800) return; last=Date.now(); onDouble(b.dataset.k||b.dataset.pick||b.dataset.dbl,e); });
+  return ()=>Date.now()-last<800; // 剛觸發過點兩下，忽略接著來的 click
+}
+const calJustDoubled = makeDoubleTap($("calGrid"), "[data-k]", k=>quickEdit(k));
+$("calGrid").addEventListener("click",e=>{
+  const b=e.target.closest("[data-k]"); if(!b || calJustDoubled()) return;
+  selectDay(b.dataset.k,null,true);
+});
+function quickEdit(k){ // 點兩下：有一筆就直接編輯，沒有就新增，有好幾筆就讓你選
+  const d=parse(k), list=(mineByDay(d.getUTCFullYear(),d.getUTCMonth())[k]||[]);
+  if(list.length===1) startEdit(list[0].it);
+  else if(!list.length) quickAdd(k);
+  else selectDay(k,`這天有 ${list.length} 筆，點下面要編輯的那一筆。`);
+}
+function quickAdd(k){
+  if(shMode) shClose(); imClose();
+  resetForm(); $("fBase").value=k; show("mine");
+  $("itemForm").scrollIntoView({block:"start"}); $("fName").focus();
+  const m=$("fErr"); m.textContent=`新增 ${fmt(parse(k))} 的日期：輸入名稱後按「新增」。`; m.style.color="var(--accent)"; m.hidden=false;
+}
+$("calInfo").addEventListener("click",e=>{
+  const qe=e.target.closest("[data-qe]"), qa=e.target.closest("[data-qa]"), qp=e.target.closest("[data-qp]"), pv=e.target.closest("[data-pv]");
+  if(qe){ const it=items.find(x=>x.id===qe.dataset.qe); if(it) startEdit(it); }
+  if(qa) quickAdd(qa.dataset.qa);
+  if(qp){ phTarget=qp.dataset.qp; $("phFile").click(); }
+  if(pv) openViewer(calSel,pv.dataset.pv);
+});
 $("showMine").addEventListener("change",()=>{ try{ localStorage.setItem("redletter-showmine",$("showMine").checked?"1":"0"); }catch(e){} renderCal(); if(calSel) selectDay(calSel); });
 try{ if(localStorage.getItem("redletter-showmine")==="0") $("showMine").checked=false; }catch(e){}
 $("calToday").onclick=()=>{ calY=TODAY.getUTCFullYear(); calM=TODAY.getUTCMonth(); selectDay(key(TODAY)); };
@@ -589,27 +661,56 @@ function rep(it){ return ["year","month","days"].includes(it.repeat) ? it.repeat
 const everyOf = it => Math.max(1, parseInt(it.every,10) || 100);
 const clampDay = (y,m,d) => { const yy=y+Math.floor(m/12), mm=((m%12)+12)%12; return mk(yy,mm,Math.min(d,new Date(Date.UTC(yy,mm+1,0)).getUTCDate())); };
 const hasRemind = it => it.remind!==undefined && it.remind!==null && it.remind!=="" && !isNaN(+it.remind);
-function target(it){ // 下一次（今天或之後）的日期
-  const b=baseTarget(it), r=rep(it); let t=b, label="";
-  if(r==="year"){
+const RULE_K=["every","at","month","year"];
+function sanitizeRules(arr){
+  if(!Array.isArray(arr)) return null;
+  const out=[], seen=new Set();
+  for(const r of arr){ if(!r||!RULE_K.includes(r.k)) continue;
+    const o={k:r.k}; if(r.k==="every"||r.k==="at"){ o.n=Math.max(1,Math.min(100000,parseInt(r.n,10)||0)); if(!o.n) continue; }
+    const t=ruleText(o); if(!seen.has(t)){ seen.add(t); out.push(o); } }
+  return out.slice(0,10);
+}
+function rulesOf(it){ // 舊資料（repeat / yearly）自動轉成規則
+  const s=sanitizeRules(it.rules); if(s) return s;
+  const r=rep(it); return r==="year"?[{k:"year"}]: r==="month"?[{k:"month"}]: r==="days"?[{k:"every",n:everyOf(it)}]: [];
+}
+const ruleText=r=> r.k==="every"?`每 ${r.n} 天`: r.k==="at"?`滿 ${r.n} 天`: r.k==="month"?"每月同一天":"每年同一天";
+function ruleNext(b,r){ // 這條規則下一次（今天或之後）
+  if(r.k==="year"){
     let y=Math.max(TODAY.getUTCFullYear(), b.getUTCFullYear()), c=clampDay(y,b.getUTCMonth(),b.getUTCDate());
     if(c<TODAY){ y++; c=clampDay(y,b.getUTCMonth(),b.getUTCDate()); }
-    t=c; const k=y-b.getUTCFullYear(); label=`每年${k>0?`・第 ${k} 年`:""}`;
-  } else if(r==="month"){
+    const k=y-b.getUTCFullYear(); return {t:c,label:k>0?`第 ${k} 年`:""};
+  }
+  if(r.k==="month"){
     let mi = b>TODAY ? b.getUTCFullYear()*12+b.getUTCMonth() : TODAY.getUTCFullYear()*12+TODAY.getUTCMonth();
     let c=clampDay(0,mi,b.getUTCDate()); if(c<TODAY){ mi++; c=clampDay(0,mi,b.getUTCDate()); }
-    t=c; const k=mi-(b.getUTCFullYear()*12+b.getUTCMonth()); label=`每月${k>0?`・滿 ${k} 個月`:""}`;
-  } else if(r==="days"){
-    const N=everyOf(it), k = b>=TODAY ? 0 : Math.ceil(diff(b,TODAY)/N);
-    t=add(b,k*N); label=`每 ${N} 天${k>0?`・滿 ${k*N} 天`:""}`;
+    const k=mi-(b.getUTCFullYear()*12+b.getUTCMonth()); return {t:c,label:k>0?`滿 ${k} 個月`:""};
   }
-  return {t,label};
+  if(r.k==="every"){ const N=r.n, k = b>=TODAY ? 0 : Math.ceil(diff(b,TODAY)/N); return {t:add(b,k*N),label:k>0?`滿 ${k*N} 天`:""}; }
+  if(r.k==="at"){ const t=add(b,r.n); return t<TODAY ? null : {t,label:`滿 ${r.n} 天`}; }
+  return null;
+}
+function ruleInMonth(b,r,y,m,put){ // 這條規則在某個月落在哪幾天
+  const ym=y*12+m, bym=b.getUTCFullYear()*12+b.getUTCMonth();
+  if(r.k==="year"){ if(y>=b.getUTCFullYear() && b.getUTCMonth()===m){ const k=y-b.getUTCFullYear(); put(clampDay(y,m,b.getUTCDate()), k>0?`第 ${k} 年`:""); } }
+  else if(r.k==="month"){ if(ym>=bym){ const k=ym-bym; put(clampDay(y,m,b.getUTCDate()), k>0?`滿 ${k} 個月`:""); } }
+  else if(r.k==="every"){ const N=r.n, ms=mk(y,m,1), me=mk(y,m+1,0);
+    let d = b>=ms ? b : add(b, Math.ceil(diff(b,ms)/N)*N);
+    for(; d<=me; d=add(d,N)){ const k=diff(b,d)/N; put(d, k>0?`滿 ${k*N} 天`:""); } }
+  else if(r.k==="at"){ put(add(b,r.n), `滿 ${r.n} 天`); }
+}
+function target(it){ // 下一個要到的日子
+  const b=baseTarget(it), rs=rulesOf(it), summary=rs.map(ruleText).join("・");
+  let best=null; for(const r of rs){ const o=ruleNext(b,r); if(o && (!best || o.t<best.t)) best=o; }
+  if(!best) return {t:b,label:"",summary};
+  if(b>=TODAY && b<best.t) return {t:b,label:"",summary};
+  return {t:best.t,label:best.label,summary};
 }
 function renderReminders(){
-  const due=items.filter(hasRemind).map(it=>{ const {t}=target(it); return {it,t,n:diff(TODAY,t)}; })
+  const due=items.filter(hasRemind).map(it=>{ const {t,label}=target(it); return {it,t,lb:label,n:diff(TODAY,t)}; })
     .filter(o=>o.n>=0 && o.n<=+o.it.remind).sort((a,b)=>a.n-b.n);
   const bar=$("remindBar"); bar.hidden=!due.length;
-  bar.innerHTML=due.map(({it,t,n})=>`<button type="button" data-goto="mine" style="--rc:var(--${colorOf(it)})"><span class="bell">提醒</span><span class="tx">${esc(it.name)}<span style="color:var(--muted);font-size:13px">・${fmt(t)}</span></span><span class="when">${n===0?"就是今天":`${n} 天後`}</span></button>`).join("");
+  bar.innerHTML=due.map(({it,t,n,lb})=>`<button type="button" data-goto="mine" style="--rc:var(--${colorOf(it)})"><span class="bell">提醒</span><span class="tx">${esc(it.name)}${lb?`・${esc(lb)}`:""}<span style="color:var(--muted);font-size:13px">・${fmt(t)}</span></span><span class="when">${n===0?"就是今天":`${n} 天後`}</span></button>`).join("");
 }
 function renderItems(){
   renderCal(); if(calSel) selectDay(calSel); renderReminders();
@@ -617,23 +718,34 @@ function renderItems(){
   if(!items.length){ box.innerHTML=`<div class="empty">還沒有自訂日期。在上方輸入名稱和日期，或點一個快速範本開始。</div>`; return; }
   const list=items.map(it=>({it,...target(it)})).map(o=>({...o,n:diff(TODAY,o.t)}))
     .sort((a,b)=>(a.n<0)-(b.n<0) || (a.n>=0? a.n-b.n : b.n-a.n));
-  box.innerHTML=list.map(({it,t,n,label})=>{
+  box.innerHTML=list.map(({it,t,n,label,summary})=>{
     const how = it.mode==="offset" ? `${it.base.replaceAll("-","/")} ${+it.sign<0?"－":"＋"}${it.n} ${unitName[it.unit]}` : "";
     const hol=HOL[key(t)];
     const wdLeft = n>0 ? workdaysBetween(add(TODAY,1),t) : null;
     const on=shSel.has(it.id);
-    return `<div class="item${shMode?" pick":""}${shMode&&on?" on":""}"${shMode?` data-pick="${it.id}" role="checkbox" aria-checked="${on}" tabindex="0"`:""}>
-      <div class="nm">${shMode?`<span class="tick">${on?"✓":""}</span>`:""}<span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${label?` <span class="chip acc">${label}</span>`:""}${hasRemind(it)?` <span class="chip mute">${+it.remind===0?"當天提醒":`前 ${+it.remind} 天提醒`}</span>`:""}</div>
-      <div class="meta">${fmt(t)}${hol?`・<span style="color:var(--red)">${esc(hol.n)}</span>`:""}${how?`<br>${how}`:""}${wdLeft!==null?`<br>還有 ${wdLeft} 個工作天${spansUncovered(TODAY,t)?"（超出假日資料部分只排除週末）":""}`:""}</div>
+    return `<div data-dbl="${it.id}" class="item${shMode?" pick":""}${shMode&&on?" on":""}"${shMode?` data-pick="${it.id}" role="checkbox" aria-checked="${on}" tabindex="0"`:""}>
+      <div class="nm">${shMode?`<span class="tick">${on?"✓":""}</span>`:""}<span class="cdot" style="background:var(--${colorOf(it)})"></span>${esc(it.name)}${summary?` <span class="chip acc">${esc(summary)}</span>`:""}${hasRemind(it)?` <span class="chip mute">${+it.remind===0?"當天提醒":`前 ${+it.remind} 天提醒`}</span>`:""}</div>
+      <div class="meta">${label?`<b>下次：${esc(label)}</b>・`:""}${fmt(t)}${hol?`・<span style="color:var(--red)">${esc(hol.n)}</span>`:""}${how?`<br>${how}`:""}${wdLeft!==null?`<br>還有 ${wdLeft} 個工作天${spansUncovered(TODAY,t)?"（超出假日資料部分只排除週末）":""}`:""}</div>
       <div class="cnt"><div class="v${n>=0&&n<=7?" soon":""}">${n===0?"今天":Math.abs(n)}</div><div class="u">${n===0?"":n>0?"天後":"天前"}</div></div>
-      <div class="acts"${shMode?" hidden":""}><button data-ed="${it.id}">編輯</button><button data-ics="${it.id}">加到手機行事曆</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
+      <div class="acts"${shMode?" hidden":""}><button data-ed="${it.id}">編輯</button><button data-goday="${key(t)}">看月曆</button><button data-ics="${it.id}">加到手機行事曆</button><button data-del="${it.id}" class="${confirmDel===it.id?"confirm":""}">${confirmDel===it.id?"確定刪除？":"刪除"}</button></div>
     </div>`;}).join("");
 }
 
 function toggleMode(){ const off=$("fMode").value==="offset"; document.querySelectorAll(".offonly").forEach(e=>e.hidden=!off); }
 $("fMode").addEventListener("change",toggleMode); toggleMode();
-function toggleRepeat(){ $("fEveryWrap").hidden = $("fRepeat").value!=="days"; }
-$("fRepeat").addEventListener("change",toggleRepeat);
+let formRules=[];
+function renderRules(){
+  $("fRules").innerHTML = formRules.length
+    ? formRules.map((r,i)=>`<button type="button" class="rchip" data-rr="${i}" aria-label="移除 ${ruleText(r)}">${ruleText(r)} ×</button>`).join("")
+    : `<span class="hint">還沒加規則：只會顯示這一天本身</span>`;
+}
+function toggleRuleN(){ $("fRuleNWrap").hidden = !["every","at"].includes($("fRuleType").value); }
+$("fRuleType").addEventListener("change",()=>{ const t=$("fRuleType").value; if(t==="at"&&$("fRuleN").value==="30") $("fRuleN").value=100; if(t==="every"&&$("fRuleN").value==="100") $("fRuleN").value=30; toggleRuleN(); });
+$("fRuleAdd").onclick=()=>{
+  const k=$("fRuleType").value, r={k}; if(k==="every"||k==="at"){ r.n=parseInt($("fRuleN").value,10); if(!(r.n>=1)){ $("fErr").textContent="天數要是 1 以上的數字。"; $("fErr").style.color=""; $("fErr").hidden=false; return; } }
+  formRules=sanitizeRules([...formRules,r]); renderRules(); $("fErr").hidden=true;
+};
+$("fRules").addEventListener("click",e=>{ const b=e.target.closest("[data-rr]"); if(!b) return; formRules.splice(+b.dataset.rr,1); renderRules(); });
 let multi=false, picks=new Set(), pkY=TODAY.getUTCFullYear(), pkM=TODAY.getUTCMonth();
 function setMulti(on){
   multi=on; $("multiToggle").setAttribute("aria-pressed",on);
@@ -668,24 +780,33 @@ $("pkPrev").onclick=()=>{ pkM--; if(pkM<0){pkM=11;pkY--;} renderPicker(); };
 $("pkNext").onclick=()=>{ pkM++; if(pkM>11){pkM=0;pkY++;} renderPicker(); };
 $("pkToday").onclick=()=>{ pkY=TODAY.getUTCFullYear(); pkM=TODAY.getUTCMonth(); renderPicker(); };
 
-function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; $("fEvery").value=100; toggleMode(); toggleRepeat(); $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
+function resetForm(){ editing=null; picks=new Set(); $("multiRow").hidden=false; if(multi) setMulti(false); $("itemForm").reset(); $("fBase").value=key(TODAY); $("fN").value=30; formRules=[]; renderRules(); $("fRuleN").value=30; toggleRuleN(); toggleMode(); $("fErr").style.color=""; $("fSubmit").textContent="新增"; $("fCancel").hidden=true; $("fErr").hidden=true; }
 resetForm();
 $("fCancel").onclick=resetForm;
 
 const QUICK={
-  bday:{name:"生日",mode:"date",repeat:"year",remind:"3"},
+  bday:{name:"生日",mode:"date",rules:[{k:"year"}],remind:"3"},
   contract:{name:"合約到期",mode:"offset",sign:1,n:90,unit:"d"},
   pay:{name:"付款期限",mode:"offset",sign:1,n:30,unit:"w"},
-  anni:{name:"交往紀念日",mode:"date",repeat:"month",remind:"1"},
-  hundred:{name:"在一起",mode:"date",repeat:"days",every:100,remind:"3"}
+  anni:{name:"交往紀念日",mode:"date",rules:[{k:"month"}],remind:"1"},
+  hundred:{name:"紀念日",mode:"date",rules:[{k:"every",n:30},{k:"at",n:100}],remind:"1"}
 };
 $("quick").addEventListener("click",e=>{
   const b=e.target.closest("[data-q]"); if(!b) return; const q=QUICK[b.dataset.q];
-  $("fName").value=q.name; $("fMode").value=q.mode; $("fRepeat").value=q.repeat||"none"; $("fRemind").value=q.remind||""; if(q.every) $("fEvery").value=q.every; toggleRepeat();
+  $("fName").value=q.name; $("fMode").value=q.mode; formRules=sanitizeRules(q.rules||[]); renderRules(); $("fRemind").value=q.remind||"";
   if(q.mode==="offset"){ $("fSign").value=q.sign; $("fN").value=q.n; $("fUnit").value=q.unit; }
   toggleMode(); $("fName").focus(); $("fName").select();
 });
 
+function startEdit(it){
+  if(shMode) shClose(); imClose(); resetForm(); editing=it.id; show("mine");
+  $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode||"date"; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d";
+  formRules=rulesOf(it); renderRules(); $("fRemind").value=hasRemind(it)?String(+it.remind):"";
+  { const r=document.querySelector(`input[name="fColor"][value="${colorOf(it)}"]`); if(r) r.checked=true; }
+  $("multiRow").hidden=true; toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false;
+  $("itemForm").scrollIntoView({block:"start"}); $("fName").focus();
+  const m=$("fErr"); m.textContent=`正在編輯「${it.name}」`; m.style.color="var(--accent)"; m.hidden=false;
+}
 async function saveItem(it){
   { const i=items.findIndex(x=>x.id===it.id); if(i>=0) items[i]=it; else items.push(it); lsSave(); renderItems(); }
 }
@@ -698,7 +819,7 @@ $("itemForm").addEventListener("submit",async e=>{
   const bases = multi ? [...picks].sort() : [$("fBase").value].filter(Boolean);
   if(!name){ $("fErr").textContent="請填寫名稱。"; $("fErr").hidden=false; return; }
   if(!bases.length){ $("fErr").textContent= multi?"請在月曆上至少選一天。":"請選擇日期。"; $("fErr").hidden=false; return; }
-  const common={ name, mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value, repeat:$("fRepeat").value, every:Math.max(1,parseInt($("fEvery").value,10)||100), remind:$("fRemind").value, color:(document.querySelector('input[name="fColor"]:checked')||{}).value||"c1", updated:Date.now() };
+  const common={ name, mode:$("fMode").value, sign:+$("fSign").value, n:Math.max(0,parseInt($("fN").value,10)||0), unit:$("fUnit").value, rules:formRules.map(r=>({...r})), remind:$("fRemind").value, color:(document.querySelector('input[name="fColor"]:checked')||{}).value||"c1", updated:Date.now() };
   try{
     for(const base of bases){
       await saveItem({ id: (editing && bases.length===1) ? editing : ("i"+Date.now().toString(36)+Math.random().toString(36).slice(2,8)), base, ...common });
@@ -710,13 +831,60 @@ $("itemForm").addEventListener("submit",async e=>{
 });
 $("items").addEventListener("click",async e=>{
   const ed=e.target.closest("[data-ed]"), del=e.target.closest("[data-del]");
-  if(ed){ const it=items.find(x=>x.id===ed.dataset.ed); if(!it) return; editing=it.id;
-    $("fName").value=it.name; $("fBase").value=it.base; $("fMode").value=it.mode; $("fSign").value=it.sign||1; $("fN").value=it.n||0; $("fUnit").value=it.unit||"d"; $("fRepeat").value=rep(it); $("fEvery").value=everyOf(it); $("fRemind").value=hasRemind(it)?String(+it.remind):""; toggleRepeat(); { const r=document.querySelector(`input[name="fColor"][value="${colorOf(it)}"]`); if(r) r.checked=true; }
-    if(multi) setMulti(false); $("multiRow").hidden=true; toggleMode(); $("fSubmit").textContent="儲存修改"; $("fCancel").hidden=false; $("itemForm").scrollIntoView({behavior:"smooth",block:"start"}); $("fName").focus(); }
+  if(ed){ const it=items.find(x=>x.id===ed.dataset.ed); if(it) startEdit(it); }
+  const gd=e.target.closest("[data-goday]"); if(gd){ const d=parse(gd.dataset.goday); calY=d.getUTCFullYear(); calM=d.getUTCMonth(); show("hol"); selectDay(gd.dataset.goday); $("calGrid").scrollIntoView({block:"center"}); }
   if(del){ const id=del.dataset.del;
     if(confirmDel===id){ confirmDel=null; try{ await removeItem(id); }catch(err){ renderItems(); } }
     else { confirmDel=id; renderItems(); setTimeout(()=>{ if(confirmDel===id){ confirmDel=null; renderItems(); } },4000); } }
 });
+
+// ---------- 照片（存在這台裝置的 IndexedDB）----------
+const PH={}; let phTarget=null;
+const pdb=(()=>{ let p;
+  const open=()=>p||(p=new Promise((res,rej)=>{ if(!("indexedDB" in window)) return rej(new Error("no idb"));
+    const r=indexedDB.open("redletter",1); r.onupgradeneeded=()=>r.result.createObjectStore("photos",{keyPath:"id"}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }));
+  const run=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{ const t=db.transaction("photos",mode), q=fn(t.objectStore("photos")); t.oncomplete=()=>res(q&&q.result); t.onerror=t.onabort=()=>rej(t.error); }));
+  return { all:()=>run("readonly",s=>s.getAll()), put:o=>run("readwrite",s=>s.put(o)), del:id=>run("readwrite",s=>s.delete(id)) };
+})();
+const phSave=rec=>{ const {turl,...o}=rec; return pdb.put(o); };
+function phIndex(rec){ rec.turl=URL.createObjectURL(rec.thumb); (PH[rec.date]=PH[rec.date]||[]).push(rec); PH[rec.date].sort((a,b)=>a.created-b.created); }
+async function phLoad(){ try{ (await pdb.all()).forEach(phIndex); renderCal(); if(calSel) selectDay(calSel); }catch(e){} }
+function loadImg(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{ res(im); setTimeout(()=>URL.revokeObjectURL(u),2000); }; im.onerror=()=>{ URL.revokeObjectURL(u); rej(new Error("bad")); }; im.src=u; }); }
+function toJpeg(c,q){ return new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error("blob")),"image/jpeg",q)); }
+function shrink(im,max){ const W=im.naturalWidth,H=im.naturalHeight,sc=Math.min(1,max/Math.max(W,H)), c=document.createElement("canvas");
+  c.width=Math.round(W*sc); c.height=Math.round(H*sc); c.getContext("2d").drawImage(im,0,0,c.width,c.height); return toJpeg(c,.85); }
+function thumbOf(im,size){ const W=im.naturalWidth,H=im.naturalHeight,s=Math.min(W,H), c=document.createElement("canvas"); c.width=c.height=size;
+  c.getContext("2d").drawImage(im,(W-s)/2,(H-s)/2,s,s,0,0,size,size); return toJpeg(c,.8); }
+$("phFile").onchange=async e=>{
+  const files=[...e.target.files]; e.target.value=""; const date=phTarget; if(!date||!files.length) return;
+  selectDay(date,`照片處理中…（${files.length} 張）`);
+  let ok=0;
+  for(const f of files){ try{ const im=await loadImg(f); const rec={id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7),date,caption:"",created:Date.now(),full:await shrink(im,1600),thumb:await thumbOf(im,200)};
+    await phSave(rec); phIndex(rec); ok++; }catch(err){} }
+  try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+  selectDay(date, ok===files.length?`已加入 ${ok} 張照片。`:`加入 ${ok} 張，${files.length-ok} 張讀不到（可能不是照片或空間不足）。`);
+};
+// 看照片
+let vList=[], vIdx=0, vUrl=null, vDelArm=false;
+function openViewer(date,id){ vList=PH[date]||[]; vIdx=Math.max(0,vList.findIndex(p=>p.id===id)); if(!vList.length) return;
+  $("viewer").hidden=false; document.body.style.overflow="hidden"; drawViewer(); }
+function drawViewer(){ const p=vList[vIdx]; if(!p){ closeViewer(); return; }
+  if(vUrl) URL.revokeObjectURL(vUrl); vUrl=URL.createObjectURL(p.full); $("vImg").src=vUrl; $("vImg").alt=p.caption||"照片";
+  $("vDate").textContent=`${fmt(parse(p.date))}・${vIdx+1} / ${vList.length}`; $("vCap").value=p.caption||"";
+  $("vPrev").style.visibility=vList.length>1?"visible":"hidden"; $("vNext").style.visibility=vList.length>1?"visible":"hidden";
+  vDelArm=false; $("vDel").textContent="刪除照片"; $("vDel").classList.remove("confirm"); }
+function closeViewer(){ $("viewer").hidden=true; document.body.style.overflow=""; if(vUrl){ URL.revokeObjectURL(vUrl); vUrl=null; } if(calSel) selectDay(calSel); }
+$("vClose").onclick=closeViewer;
+$("vPrev").onclick=()=>{ vIdx=(vIdx-1+vList.length)%vList.length; drawViewer(); };
+$("vNext").onclick=()=>{ vIdx=(vIdx+1)%vList.length; drawViewer(); };
+document.addEventListener("keydown",e=>{ if($("viewer").hidden) return; if(e.key==="Escape") closeViewer(); if(e.target.id==="vCap") return; if(e.key==="ArrowLeft") $("vPrev").click(); if(e.key==="ArrowRight") $("vNext").click(); });
+$("vCap").addEventListener("change",()=>{ const p=vList[vIdx]; if(!p) return; p.caption=$("vCap").value.trim(); phSave(p).catch(()=>{}); });
+$("vDel").onclick=async()=>{ const p=vList[vIdx]; if(!p) return;
+  if(!vDelArm){ vDelArm=true; $("vDel").textContent="確定刪除？再按一次"; $("vDel").classList.add("confirm"); return; }
+  try{ await pdb.del(p.id); }catch(e){}
+  URL.revokeObjectURL(p.turl); const arr=PH[p.date]||[]; arr.splice(arr.indexOf(p),1); if(!arr.length) delete PH[p.date];
+  vList=PH[p.date]||[]; if(!vList.length){ closeViewer(); return; } vIdx=Math.min(vIdx,vList.length-1); drawViewer(); renderCal(); };
 
 // 備份／還原（把資料搬到另一台裝置）
 function saveFile(name,text,type){
@@ -727,14 +895,21 @@ const icsEsc=s=>String(s).replace(/\\/g,"\\\\").replace(/([,;])/g,"\\$1").replac
 function icsOf(list){
   const ymd=d=>key(d).replace(/-/g,""), stamp=new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d+/,"");
   const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//RedLetter//TW","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
-  for(const it of list){
-    const r=rep(it), s = r==="none" ? baseTarget(it) : baseTarget(it);
-    L.push("BEGIN:VEVENT",`UID:${it.id}@redletter`,`DTSTAMP:${stamp}`,`DTSTART;VALUE=DATE:${ymd(s)}`,`DTEND;VALUE=DATE:${ymd(add(s,1))}`,`SUMMARY:${icsEsc(it.name)}`,"TRANSP:TRANSPARENT");
-    if(r==="year") L.push("RRULE:FREQ=YEARLY");
-    if(r==="month") L.push("RRULE:FREQ=MONTHLY");
-    if(r==="days") L.push(`RRULE:FREQ=DAILY;INTERVAL=${everyOf(it)}`);
-    if(hasRemind(it)){ const R=+it.remind; L.push("BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsEsc(it.name)}`, R===0?"TRIGGER:PT9H":`TRIGGER:-PT${R*24-9}H`,"END:VALARM"); }
+  const ev=(uid,start,title,rrule,it)=>{
+    L.push("BEGIN:VEVENT",`UID:${uid}@redletter`,`DTSTAMP:${stamp}`,`DTSTART;VALUE=DATE:${ymd(start)}`,`DTEND;VALUE=DATE:${ymd(add(start,1))}`,`SUMMARY:${icsEsc(title)}`,"TRANSP:TRANSPARENT");
+    if(rrule) L.push("RRULE:"+rrule);
+    if(hasRemind(it)){ const R=+it.remind; L.push("BEGIN:VALARM","ACTION:DISPLAY",`DESCRIPTION:${icsEsc(title)}`, R===0?"TRIGGER:PT9H":`TRIGGER:-PT${R*24-9}H`,"END:VALARM"); }
     L.push("END:VEVENT");
+  };
+  for(const it of list){
+    const b=baseTarget(it), rs=rulesOf(it);
+    if(!rs.length){ ev(it.id,b,it.name,"",it); continue; }
+    rs.forEach((r,i)=>{
+      if(r.k==="year") ev(`${it.id}-${i}`,b,`${it.name}（週年）`,"FREQ=YEARLY",it);
+      if(r.k==="month") ev(`${it.id}-${i}`,b,`${it.name}（每月）`,"FREQ=MONTHLY",it);
+      if(r.k==="every") ev(`${it.id}-${i}`,b,`${it.name}（每 ${r.n} 天）`,`FREQ=DAILY;INTERVAL=${r.n}`,it);
+      if(r.k==="at") ev(`${it.id}-${i}`,add(b,r.n),`${it.name}・滿 ${r.n} 天`,"",it);
+    });
   }
   L.push("END:VCALENDAR"); return L.join("\r\n")+"\r\n";
 }
@@ -743,9 +918,13 @@ $("items").addEventListener("click",e=>{ const b=e.target.closest("[data-ics]");
   bkMsg("已產生行事曆檔，打開它並選「加入行事曆」，手機就會在設定的時間提醒你。",true); });
 document.addEventListener("click",e=>{ const b=e.target.closest("[data-goto]"); if(b) show(b.dataset.goto); });
 function bkMsg(t,ok){ const m=$("bkMsg"); m.textContent=t; m.style.color=ok?"var(--accent)":"var(--red)"; m.hidden=false; setTimeout(()=>m.hidden=true,5000); }
-$("bkOut").onclick=()=>{
-  saveFile(`紅字日曆備份-${key(TODAY)}.json`, JSON.stringify({app:"redletter",v:1,items},null,2), "application/json");
-  bkMsg(`已匯出 ${items.length} 筆日期。`,true);
+const toDataURL=b=>new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+$("bkOut").onclick=async()=>{
+  const all=Object.values(PH).flat(), photos=[];
+  bkMsg(all.length?"正在打包照片…":"正在匯出…",true);
+  for(const p of all){ try{ photos.push({id:p.id,date:p.date,caption:p.caption||"",created:p.created,full:await toDataURL(p.full),thumb:await toDataURL(p.thumb)}); }catch(e){} }
+  saveFile(`紅字日曆備份-${key(TODAY)}.json`, JSON.stringify({app:"redletter",v:2,items,photos}), "application/json");
+  bkMsg(`已匯出 ${items.length} 筆日期${photos.length?`、${photos.length} 張照片`:""}。`,true);
 };
 $("bkIn").onclick=()=>$("bkFile").click();
 $("bkFile").onchange=async e=>{
@@ -754,14 +933,19 @@ $("bkFile").onchange=async e=>{
     if(!Array.isArray(arr)) throw 0;
     const have=new Set(items.map(x=>x.id)); let n=0;
     for(const x of arr){ if(x&&x.id&&x.name&&/^\d{4}-\d{2}-\d{2}$/.test(x.base)&&!have.has(x.id)){ items.push(x); n++; } }
-    lsSave(); renderItems(); bkMsg(`已還原 ${n} 筆日期（重複的已略過）。`,true);
+    let pn=0; const haveP=new Set(Object.values(PH).flat().map(p=>p.id));
+    for(const x of (Array.isArray(data.photos)?data.photos:[])){ try{ if(!x||!x.id||haveP.has(x.id)||!/^\d{4}-\d{2}-\d{2}$/.test(x.date)) continue;
+      const rec={id:x.id,date:x.date,caption:String(x.caption||"").slice(0,120),created:+x.created||Date.now(),full:await (await fetch(x.full)).blob(),thumb:await (await fetch(x.thumb)).blob()};
+      await phSave(rec); phIndex(rec); pn++; }catch(e){} }
+    lsSave(); renderItems(); bkMsg(`已還原 ${n} 筆日期${pn?`、${pn} 張照片`:""}（重複的已略過）。`,true);
   }catch(err){ bkMsg("這個檔案不是紅字日曆的備份檔。",false); }
   e.target.value="";
 };
 
+const itemsJustDoubled = makeDoubleTap($("items"), "[data-dbl]", (id,e)=>{ if(shMode || e.target.closest("button")) return; const it=items.find(x=>x.id===id); if(it) startEdit(it); });
 // ---------- 分享給朋友 ----------
 let shMode=false, shSel=new Set();
-const FIELDS=["name","base","mode","sign","n","unit","yearly","color","repeat","every","remind"];
+const FIELDS=["name","base","mode","sign","n","unit","yearly","color","repeat","every","remind","rules"];
 function enc(arr){ const json=JSON.stringify({v:1,i:arr.map(it=>FIELDS.map(f=>it[f]??null))});
   const bytes=new TextEncoder().encode(json); let bin=""; for(const b of bytes) bin+=String.fromCharCode(b);
   return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,""); }
@@ -769,7 +953,7 @@ function dec(code){ let b=code.replace(/-/g,"+").replace(/_/g,"/"); while(b.leng
   const bin=atob(b), bytes=Uint8Array.from(bin,c=>c.charCodeAt(0)); const o=JSON.parse(new TextDecoder().decode(bytes));
   return (o.i||[]).map(r=>{ const it={}; FIELDS.forEach((f,i)=>{ if(r[i]!==null&&r[i]!==undefined) it[f]=r[i]; }); return it; })
     .filter(it=>typeof it.name==="string"&&it.name&&/^\d{4}-\d{2}-\d{2}$/.test(it.base||""))
-    .map(it=>({...it,name:it.name.slice(0,40),mode:it.mode==="offset"?"offset":"date",sign:+it.sign<0?-1:1,n:Math.max(0,parseInt(it.n,10)||0),unit:unitName[it.unit]?it.unit:"d",yearly:!!it.yearly,color:COLORS.includes(it.color)?it.color:"c1",repeat:rep(it),every:everyOf(it),remind:hasRemind(it)?String(+it.remind):""})); }
+    .map(it=>({...it,name:it.name.slice(0,40),mode:it.mode==="offset"?"offset":"date",sign:+it.sign<0?-1:1,n:Math.max(0,parseInt(it.n,10)||0),unit:unitName[it.unit]?it.unit:"d",yearly:!!it.yearly,color:COLORS.includes(it.color)?it.color:"c1",rules:rulesOf(it),remind:hasRemind(it)?String(+it.remind):""})); }
 function shareCount(){ $("shCount").textContent = shSel.size?`已選 ${shSel.size} 筆`:"點下面的日期來勾選"; $("shMake").disabled=!shSel.size; $("shMake").style.opacity=shSel.size?1:.5; }
 function shOpen(){ if(!items.length){ bkMsg("還沒有日期可以分享，先新增幾個吧。",false); return; }
   imClose(); shMode=true; shSel=new Set(); $("shPanel").hidden=false; $("shPick").hidden=false; $("shDone").hidden=true; $("itemForm").hidden=true; shareCount(); renderItems(); $("shPanel").scrollIntoView({behavior:"smooth",block:"start"}); }
@@ -801,7 +985,7 @@ function imShow(list){
   $("imPanel").hidden=false; $("imPaste").hidden=true; $("imList").hidden=false; $("imMsg").hidden=true;
   $("imTitle").textContent=`朋友分享了 ${list.length} 個日期給你`;
   $("imRows").innerHTML=list.map((it,i)=>{ const dup=have.has(sameKey(it)); const t=target(it).t;
-    return `<label class="${dup?"dup":""}"><input type="checkbox" data-im="${i}" ${dup?"disabled":"checked"}><span class="cdot" style="background:var(--${it.color})"></span><span style="min-width:0"><b>${esc(it.name)}</b>${rep(it)!=="none"?` <span class="chip acc">${target(it).label}</span>`:""}${false?` <span class="chip acc">每年</span>`:""}<br><span class="d">${fmt(t)}${dup?"・你已經有了":""}</span></span></label>`; }).join("");
+    return `<label class="${dup?"dup":""}"><input type="checkbox" data-im="${i}" ${dup?"disabled":"checked"}><span class="cdot" style="background:var(--${it.color})"></span><span style="min-width:0"><b>${esc(it.name)}</b>${rulesOf(it).length?` <span class="chip acc">${esc(target(it).summary)}</span>`:""}<br><span class="d">${fmt(t)}${dup?"・你已經有了":""}</span></span></label>`; }).join("");
 }
 function imFromText(txt){ const m=String(txt).match(/share=([A-Za-z0-9_-]+)/); if(!m) throw 0; const list=dec(m[1]); if(!list.length) throw 0; return list; }
 $("imStart").onclick=()=>{ if(shMode) shClose(); $("imPanel").hidden=false; $("imPaste").hidden=false; $("imList").hidden=true; $("imMsg").hidden=true; $("imText").value=""; $("imText").focus(); };
@@ -826,7 +1010,7 @@ function show(t){ tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab==
 tabs.forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab)));
 const h=(location.hash||"").slice(1); if(["hol","calc","mine"].includes(h)) show(h);
 
-renderHero(); renderYearPick(); renderList(); renderCal(); calcA(); calcB(); renderItems();
+renderHero(); renderYearPick(); renderList(); renderCal(); calcA(); calcB(); renderItems(); phLoad();
 })();
 </script>
 <script>
