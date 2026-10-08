@@ -1,5 +1,5 @@
 // 紅字日曆 離線快取。更新網頁內容時，把版本號 +1，使用者下次開啟就會拿到新版。
-const VERSION = "redletter-v9";
+const VERSION = "redletter-v10";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
