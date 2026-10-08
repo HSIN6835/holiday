@@ -56,6 +56,13 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 h2{font:700 19px/1.3 var(--f-display);margin:0;text-wrap:balance}
 .label{font-size:12px;letter-spacing:.08em;color:var(--muted)}
 section.panel{display:flex;flex-direction:column;gap:18px}
+@keyframes inR{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-36px)}to{opacity:1;transform:none}}
+section.panel.in-r{animation:inR .22s ease-out}
+section.panel.in-l{animation:inL .22s ease-out}
+.wrap{overflow-x:clip}
+.swipehint{text-align:center;font-size:12px;color:var(--muted);margin-top:-4px;margin-bottom:8px}
+@media (prefers-reduced-motion:reduce){section.panel.in-r,section.panel.in-l{animation:none}}
 
 /* hero */
 .hero{display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
@@ -250,12 +257,13 @@ footer{margin-top:28px;font-size:12.5px;color:var(--muted);line-height:1.7}
 
   <nav class="tabs" aria-label="功能">
     <div class="seg" role="tablist">
-      <button role="tab" id="tab-hol" aria-selected="true" data-tab="hol">國定假日</button>
+      <button role="tab" id="tab-hol" aria-selected="true" data-tab="hol">月曆</button>
       <button role="tab" id="tab-calc" aria-selected="false" data-tab="calc">日期計算</button>
       <button role="tab" id="tab-mine" aria-selected="false" data-tab="mine">我的日期</button>
     </div>
   </nav>
 
+  <div class="swipehint" id="swipeHint" hidden>左右滑動可以切換「月曆／日期計算／我的日期」</div>
   <div class="remind" id="remindBar" hidden></div>
 
   <!-- 假日 -->
@@ -1045,7 +1053,7 @@ $("imAdd").onclick=()=>{
   const picked=[...document.querySelectorAll("#imRows input[data-im]:checked")].map(c=>imItems[+c.dataset.im]);
   if(!picked.length){ imMsg("沒有勾選任何日期。",false); return; }
   picked.forEach(it=>items.push({...it,id:"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,8),updated:Date.now()}));
-  lsSave(); renderItems(); imClose(); bkMsg(`已加入 ${picked.length} 個朋友分享的日期，國定假日月曆上也看得到。`,true);
+  lsSave(); renderItems(); imClose(); bkMsg(`已加入 ${picked.length} 個朋友分享的日期，月曆上也看得到。`,true);
 };
 // 從分享連結開啟
 (function(){
@@ -1056,8 +1064,38 @@ $("imAdd").onclick=()=>{
 
 // ---------- 分頁 ----------
 const tabs=document.querySelectorAll("[data-tab]");
-function show(t){ tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); ["hol","calc","mine"].forEach(p=>$("p-"+p).hidden=p!==t); }
-tabs.forEach(b=>b.addEventListener("click",()=>show(b.dataset.tab)));
+const ORDER=["hol","calc","mine"]; let curTab="hol";
+function show(t,dir){
+  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t));
+  ORDER.forEach(p=>$("p-"+p).hidden=p!==t);
+  const el=$("p-"+t); el.classList.remove("in-r","in-l");
+  if(dir){ void el.offsetWidth; el.classList.add(dir>0?"in-r":"in-l"); }
+  if(t!==curTab && dir) window.scrollTo({top:0});
+  curTab=t;
+}
+// 左右滑動切換分頁
+(function(){
+  let sx=0, sy=0, st=0, track=false;
+  const skip=t=> t.closest('input,textarea,select,.phstrip,.imrows,.viewer,.ympanel,[contenteditable]') || !$("viewer").hidden;
+  document.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1 || skip(e.target)){ track=false; return; }
+    const t=e.touches[0]; sx=t.clientX; sy=t.clientY; st=Date.now(); track=true;
+    if(sx<20 || sx>window.innerWidth-20) track=false; // 避開螢幕邊緣的系統返回手勢
+  },{passive:true});
+  document.addEventListener("touchmove",e=>{ if(!track) return; const t=e.touches[0]; if(Math.abs(t.clientY-sy)>40 && Math.abs(t.clientY-sy)>Math.abs(t.clientX-sx)) track=false; },{passive:true});
+  document.addEventListener("touchend",e=>{
+    if(!track) return; track=false;
+    const t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Date.now()-st>800 || Math.abs(dx)<70 || Math.abs(dx)<Math.abs(dy)*1.8) return;
+    if(window.getSelection && String(window.getSelection()).length) return;
+    const i=ORDER.indexOf(curTab), j=i+(dx<0?1:-1);
+    if(j<0||j>=ORDER.length) return;
+    show(ORDER[j], dx<0?1:-1);
+    try{ localStorage.setItem("redletter-swiped","1"); }catch(_){} $("swipeHint").hidden=true;
+  },{passive:true});
+  try{ if(matchMedia("(pointer:coarse)").matches && !localStorage.getItem("redletter-swiped")) $("swipeHint").hidden=false; }catch(_){}
+})();
+tabs.forEach(b=>b.addEventListener("click",()=>{ const d=ORDER.indexOf(b.dataset.tab)-ORDER.indexOf(curTab); show(b.dataset.tab, d?Math.sign(d):0); }));
 const h=(location.hash||"").slice(1); if(["hol","calc","mine"].includes(h)) show(h);
 
 renderHero(); renderYearPick(); renderList(); renderCal(); calcA(); calcB(); renderItems(); phLoad();
